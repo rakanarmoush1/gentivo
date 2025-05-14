@@ -50,9 +50,14 @@ export default function AdminDashboard() {
   
   async function handleSalonChange(salonId: string) {
     setSelectedSalonId(salonId);
+    
     // Force reload current page to update data
     const currentPath = location.pathname;
-    navigate(currentPath);
+    
+    // Trigger a small delay to ensure state updates before navigation
+    setTimeout(() => {
+      navigate(currentPath, { replace: true });
+    }, 100);
   }
   
   const navigation = [

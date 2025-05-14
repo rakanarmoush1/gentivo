@@ -5,8 +5,10 @@ import {
   setDoc,
   getDocs,
   query,
+  where,
   limit,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { initializeMessageTemplates } from './messageTemplates';
@@ -34,14 +36,17 @@ export async function initializeFirestore(userId: string): Promise<void> {
     }
 
     // Check if salons collection exists for this user
-    const salonsRef = collection(db, 'salons');
-    const salonsQuery = query(salonsRef, limit(1));
+    const salonsQuery = query(
+      collection(db, 'salons'),
+      where('createdBy', '==', userId),
+      limit(1)
+    );
     const salonsSnapshot = await getDocs(salonsQuery);
     let salonId: string;
 
     // Create default salon if none exists for this user
     if (salonsSnapshot.empty) {
-      console.log('Creating default salon');
+      console.log('Creating default salon for user');
       const salonRef = doc(collection(db, 'salons'));
       salonId = salonRef.id;
       
@@ -80,27 +85,27 @@ export async function initializeFirestore(userId: string): Promise<void> {
         defaultServicesCreated: true
       }, { merge: true });
       
-      // Create empty bookings collection (sub-collection of salon)
-      collection(db, `salons/${salonId}/bookings`);
+      // Explicitly create bookings collection (sub-collection of salon)
+      const bookingsRef = collection(db, `salons/${salonId}/bookings`);
+      // Add a sample booking to ensure the collection exists
+      const sampleBookingRef = doc(bookingsRef);
+      await setDoc(sampleBookingRef, {
+        name: 'Sample Client',
+        phone: '555-123-4567',
+        service: 'Manicure',
+        time: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)), // tomorrow
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
       
       // Initialize message templates for this salon
       await initializeMessageTemplates(salonId);
     } else {
-      // If salons exist, get the ones belonging to this user
-      const userSalonsQuery = query(collection(db, 'salons'), limit(1));
-      const userSalonsSnapshot = await getDocs(userSalonsQuery);
+      // Get the existing salon for this user
+      salonId = salonsSnapshot.docs[0].id;
       
-      if (!userSalonsSnapshot.empty) {
-        // For each salon, ensure message templates are initialized
-        for (const salonDoc of userSalonsSnapshot.docs) {
-          salonId = salonDoc.id;
-          
-          // Initialize message templates for this salon if it belongs to the user
-          if (salonDoc.data().createdBy === userId) {
-            await initializeMessageTemplates(salonId);
-          }
-        }
-      }
+      // Initialize message templates for this salon
+      await initializeMessageTemplates(salonId);
     }
 
     // Initialize inquiries collection if it doesn't exist
