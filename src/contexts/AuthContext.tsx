@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/firebase';
+import { initializeFirestore } from '../firebase/initializeFirestore';
 
 interface User {
   uid: string;
@@ -44,8 +45,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
       if (user) {
-        // Get additional user data from Firestore if needed
+        // Initialize Firestore collections if needed
         try {
+          await initializeFirestore(user.uid);
+          
+          // Get additional user data from Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             setCurrentUser({
@@ -61,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             });
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          console.error('Error during auth state change:', error);
           setCurrentUser({
             uid: user.uid,
             email: user.email,

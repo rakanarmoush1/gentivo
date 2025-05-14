@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Routes, Route, Link, NavLink, useLocation } from 'react-router-dom';
-import { Scissors, Calendar, Users, Settings, ChevronRight, Menu, X, UserPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Scissors, Calendar, Users, Settings, ChevronRight, Menu, X, UserPlus, BarChart, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import BookingsPage from './BookingsPage';
@@ -8,17 +8,52 @@ import CalendarPage from './CalendarPage';
 import BrandingPage from './BrandingPage';
 import ServicesPage from './ServicesPage';
 import EmployeesPage from './EmployeesPage';
+import MessageTemplatesPage from './MessageTemplatesPage';
+import { getSalonId } from '../../utils/getSalonId';
+import { getUserSalons } from '../../firebase';
 
 export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [userSalons, setUserSalons] = useState<{id: string, name: string}[]>([]);
+  const [selectedSalonId, setSelectedSalonId] = useState<string>('');
   const { currentUser, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (currentUser) {
+      loadUserSalons();
+    }
+  }, [currentUser]);
+  
+  async function loadUserSalons() {
+    try {
+      if (!currentUser) return;
+      
+      const salons = await getUserSalons(currentUser.uid);
+      
+      if (salons.length > 0) {
+        setUserSalons(salons.map(salon => ({ id: salon.id, name: salon.name })));
+        
+        // Get the salon ID from the URL if available, otherwise use the first salon
+        const urlSalonId = getSalonId();
+        const salonToUse = urlSalonId && salons.some(s => s.id === urlSalonId) 
+          ? urlSalonId 
+          : salons[0].id;
+          
+        setSelectedSalonId(salonToUse);
+      }
+    } catch (error) {
+      console.error('Error loading user salons:', error);
+    }
+  }
   
   const navigation = [
     { name: 'Bookings', path: '/admin', icon: Calendar },
-    { name: 'Calendar', path: '/admin/calendar', icon: Users },
+    { name: 'Calendar', path: '/admin/calendar', icon: BarChart },
     { name: 'Services', path: '/admin/services', icon: Settings },
     { name: 'Employees', path: '/admin/employees', icon: UserPlus },
+    { name: 'Message Templates', path: '/admin/messages', icon: MessageSquare },
     { name: 'Salon Branding', path: '/admin/branding', icon: Settings },
   ];
 
@@ -76,8 +111,18 @@ export default function AdminDashboard() {
           <div className="flex-shrink-0 p-4 border-t">
             <div className="flex items-center">
               <div>
-                <p className="text-sm font-medium text-gray-700">{currentUser?.name}</p>
-                <p className="text-xs text-gray-500">{currentUser?.email}</p>
+                <p className="text-sm font-medium text-gray-700">{currentUser?.email}</p>
+                {userSalons.length > 0 && (
+                  <select
+                    value={selectedSalonId}
+                    onChange={(e) => setSelectedSalonId(e.target.value)}
+                    className="mt-1 text-xs text-gray-500 bg-transparent border-none"
+                  >
+                    {userSalons.map(salon => (
+                      <option key={salon.id} value={salon.id}>{salon.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <button
                 onClick={logout}
@@ -125,8 +170,18 @@ export default function AdminDashboard() {
           <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
             <div className="flex items-center">
               <div>
-                <p className="text-sm font-medium text-gray-700">{currentUser?.name}</p>
-                <p className="text-xs text-gray-500">{currentUser?.email}</p>
+                <p className="text-sm font-medium text-gray-700">{currentUser?.email}</p>
+                {userSalons.length > 0 && (
+                  <select
+                    value={selectedSalonId}
+                    onChange={(e) => setSelectedSalonId(e.target.value)}
+                    className="mt-1 text-xs text-gray-500 bg-transparent border-none"
+                  >
+                    {userSalons.map(salon => (
+                      <option key={salon.id} value={salon.id}>{salon.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <button
                 onClick={logout}
@@ -153,24 +208,28 @@ export default function AdminDashboard() {
                   {location.pathname === '/admin/calendar' && <span className="font-medium text-gray-900">Calendar</span>}
                   {location.pathname === '/admin/services' && <span className="font-medium text-gray-900">Services</span>}
                   {location.pathname === '/admin/employees' && <span className="font-medium text-gray-900">Employees</span>}
+                  {location.pathname === '/admin/messages' && <span className="font-medium text-gray-900">Message Templates</span>}
                   {location.pathname === '/admin/branding' && <span className="font-medium text-gray-900">Salon Branding</span>}
                 </div>
                 
                 {/* Salon booking preview button */}
-                <Link to="/booking/sample-salon" className="ml-auto">
-                  <Button variant="outline" size="sm">
-                    View Booking Page
-                  </Button>
-                </Link>
+                {selectedSalonId && (
+                  <Link to={`/booking/${selectedSalonId}`} className="ml-auto">
+                    <Button variant="outline" size="sm">
+                      View Booking Page
+                    </Button>
+                  </Link>
+                )}
               </div>
               
               {/* Page content */}
               <Routes>
-                <Route path="/" element={<BookingsPage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/services" element={<ServicesPage />} />
-                <Route path="/employees" element={<EmployeesPage />} />
-                <Route path="/branding" element={<BrandingPage />} />
+                <Route path="/" element={<BookingsPage salonId={selectedSalonId} />} />
+                <Route path="/calendar" element={<CalendarPage salonId={selectedSalonId} />} />
+                <Route path="/services" element={<ServicesPage salonId={selectedSalonId} />} />
+                <Route path="/employees" element={<EmployeesPage salonId={selectedSalonId} />} />
+                <Route path="/messages" element={<MessageTemplatesPage />} />
+                <Route path="/branding" element={<BrandingPage salonId={selectedSalonId} />} />
               </Routes>
             </div>
           </div>

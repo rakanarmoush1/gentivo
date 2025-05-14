@@ -2,6 +2,9 @@
 export { firebaseApp } from './config';
 export { auth, db } from './firebase';
 
+// Export initialization function
+export { initializeFirestore } from './initializeFirestore';
+
 // Export salon-related functions
 export {
   getSalon,
@@ -40,6 +43,15 @@ export {
   getInquiry,
   type Inquiry
 } from './inquiries';
+
+// Export message template functions
+export {
+  getMessageTemplates,
+  getTemplateByType,
+  getMessageTemplate,
+  updateMessageTemplate,
+  type MessageTemplate
+} from './messageTemplates';
 
 // Export utility for salon ID extraction
 export { getSalonId } from '../utils/getSalonId'; 
