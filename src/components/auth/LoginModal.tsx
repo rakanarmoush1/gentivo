@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../common/Modal';
 import Input from '../common/Input';
@@ -15,8 +15,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const { login, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      onClose();
+      navigate('/admin');
+    }
+  }, [isAuthenticated, loading, navigate, onClose]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,8 +32,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     
     try {
       await login(email, password);
-      onClose();
-      navigate('/admin');
+      // Navigation will happen in the useEffect above
     } catch (error) {
       if (error instanceof FirebaseError) {
         switch (error.code) {
@@ -42,10 +49,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             setError('Too many failed login attempts. Please try again later');
             break;
           default:
-            setError('Failed to log in. Please try again');
+            setError(`Failed to log in: ${error.code}`);
+            console.error('Auth error:', error);
         }
       } else {
         setError('An unexpected error occurred');
+        console.error('Unknown error:', error);
       }
     }
   }
@@ -66,6 +75,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           required
+          disabled={loading}
         />
         
         <Input
@@ -75,6 +85,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password"
           required
+          disabled={loading}
         />
         
         <div className="!mt-6">
@@ -82,8 +93,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             type="submit" 
             className="w-full" 
             loading={loading}
+            disabled={loading}
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </Button>
         </div>
         

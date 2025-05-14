@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Scissors } from 'lucide-react';
 import Input from '../components/common/Input';
@@ -10,8 +10,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const { login, loading, currentUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      navigate('/admin');
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,7 +26,7 @@ export default function LoginPage() {
     
     try {
       await login(email, password);
-      navigate('/admin');
+      // Navigation will happen in the useEffect above
     } catch (error) {
       if (error instanceof FirebaseError) {
         switch (error.code) {
@@ -36,10 +43,12 @@ export default function LoginPage() {
             setError('Too many failed login attempts. Please try again later');
             break;
           default:
-            setError('Failed to log in. Please try again');
+            setError(`Failed to log in: ${error.code}`);
+            console.error('Auth error:', error);
         }
       } else {
         setError('An unexpected error occurred');
+        console.error('Unknown error:', error);
       }
     }
   }
@@ -71,6 +80,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
               required
+              disabled={loading}
             />
             
             <Input
@@ -80,6 +90,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
+              disabled={loading}
             />
             
             <div>
@@ -87,8 +98,9 @@ export default function LoginPage() {
                 type="submit" 
                 className="w-full" 
                 loading={loading}
+                disabled={loading}
               >
-                Login
+                {loading ? 'Logging in...' : 'Login'}
               </Button>
             </div>
             
