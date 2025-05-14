@@ -172,6 +172,38 @@ export default function BookingPage() {
   
   const selectedServiceDetails = services.find(service => service.id === selectedService);
   
+  // Add styling with salon colors
+  const getColorStyles = () => {
+    if (!salon) return {};
+    
+    return {
+      primaryColor: salon.brandPrimaryColor || '#4f46e5',
+      primaryColorLight: `${salon.brandPrimaryColor}20` || '#4f46e520', // 20% opacity
+      secondaryColor: salon.brandSecondaryColor || '#f97316',
+      secondaryColorLight: `${salon.brandSecondaryColor}20` || '#f9731620', // 20% opacity
+    };
+  };
+  
+  const colors = getColorStyles();
+  
+  // Create CSS variables for colors to use throughout the component
+  useEffect(() => {
+    if (salon) {
+      document.documentElement.style.setProperty('--primary-color', salon.brandPrimaryColor || '#4f46e5');
+      document.documentElement.style.setProperty('--primary-color-light', `${salon.brandPrimaryColor}20` || '#4f46e520');
+      document.documentElement.style.setProperty('--secondary-color', salon.brandSecondaryColor || '#f97316');
+      document.documentElement.style.setProperty('--secondary-color-light', `${salon.brandSecondaryColor}20` || '#f9731620');
+    }
+    
+    return () => {
+      // Clean up by resetting the variables when component unmounts
+      document.documentElement.style.removeProperty('--primary-color');
+      document.documentElement.style.removeProperty('--primary-color-light');
+      document.documentElement.style.removeProperty('--secondary-color');
+      document.documentElement.style.removeProperty('--secondary-color-light');
+    };
+  }, [salon]);
+  
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -212,14 +244,17 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <BookingNavbar />
+      <BookingNavbar salonName={salon.name} />
       
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl mx-auto">
             {/* Salon header */}
             <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex items-center">
-              <div className="w-16 h-16 rounded-full mr-4 flex items-center justify-center bg-primary/10">
+              <div 
+                className="w-16 h-16 rounded-full mr-4 flex items-center justify-center" 
+                style={{ backgroundColor: `${colors.primaryColorLight}` }}
+              >
                 {salon.logoUrl ? (
                   <img 
                     src={salon.logoUrl} 
@@ -227,7 +262,7 @@ export default function BookingPage() {
                     className="w-16 h-16 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="text-primary text-xl font-bold">
+                  <span style={{ color: colors.primaryColor }} className="text-xl font-bold">
                     {salon.name.substring(0, 2).toUpperCase()}
                   </span>
                 )}
@@ -241,8 +276,14 @@ export default function BookingPage() {
             {/* Progress indicator */}
             <div className="mb-8">
               <div className="flex items-center justify-between">
-                <div className={`flex items-center ${currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`}>
-                  <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
+                <div className={`flex items-center ${currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
+                  <div 
+                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
+                    style={{ 
+                      borderColor: currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
+                      backgroundColor: currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
+                    }}
+                  >
                     1
                   </div>
                   <span className="ml-2 text-sm font-medium">Service</span>
@@ -250,8 +291,14 @@ export default function BookingPage() {
                 
                 <div className="flex-grow mx-2 h-0.5 bg-gray-200"></div>
                 
-                <div className={`flex items-center ${currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`}>
-                  <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
+                <div className={`flex items-center ${currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
+                  <div 
+                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
+                    style={{ 
+                      borderColor: currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
+                      backgroundColor: currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
+                    }}
+                  >
                     2
                   </div>
                   <span className="ml-2 text-sm font-medium">Time</span>
@@ -259,8 +306,14 @@ export default function BookingPage() {
                 
                 <div className="flex-grow mx-2 h-0.5 bg-gray-200"></div>
                 
-                <div className={`flex items-center ${currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`}>
-                  <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
+                <div className={`flex items-center ${currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
+                  <div 
+                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
+                    style={{ 
+                      borderColor: currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
+                      backgroundColor: currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
+                    }}
+                  >
                     3
                   </div>
                   <span className="ml-2 text-sm font-medium">Info</span>
@@ -268,8 +321,14 @@ export default function BookingPage() {
                 
                 <div className="flex-grow mx-2 h-0.5 bg-gray-200"></div>
                 
-                <div className={`flex items-center ${currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`}>
-                  <div className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'confirm' || currentStep === 'success' ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
+                <div className={`flex items-center ${currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
+                  <div 
+                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
+                    style={{ 
+                      borderColor: currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
+                      backgroundColor: currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
+                    }}
+                  >
                     4
                   </div>
                   <span className="ml-2 text-sm font-medium">Confirm</span>
@@ -292,7 +351,11 @@ export default function BookingPage() {
                       {services.map(service => (
                         <div 
                           key={service.id}
-                          className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${selectedService === service.id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                          className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${selectedService === service.id ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                          style={{ 
+                            borderColor: selectedService === service.id ? colors.primaryColor : undefined,
+                            backgroundColor: selectedService === service.id ? colors.primaryColorLight : undefined
+                          }}
                           onClick={() => handleServiceSelect(service.id)}
                         >
                           <div className="flex justify-between items-center">
@@ -315,6 +378,7 @@ export default function BookingPage() {
                       onClick={nextStep} 
                       disabled={!selectedService}
                       className="w-full"
+                      style={{ backgroundColor: colors.primaryColor }}
                     >
                       Continue
                     </Button>
@@ -334,7 +398,11 @@ export default function BookingPage() {
                     {timeSlots.map(time => (
                       <div 
                         key={time}
-                        className={`border rounded-lg py-3 px-4 text-center cursor-pointer transition-all duration-200 ${selectedTime === time ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                        className={`border rounded-lg py-3 px-4 text-center cursor-pointer transition-all duration-200 ${selectedTime === time ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                        style={{ 
+                          borderColor: selectedTime === time ? colors.primaryColor : undefined,
+                          backgroundColor: selectedTime === time ? colors.primaryColorLight : undefined
+                        }}
                         onClick={() => handleTimeSelect(time)}
                       >
                         <span className="font-medium">{time}</span>

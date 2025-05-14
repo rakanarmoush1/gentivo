@@ -10,7 +10,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -191,6 +192,31 @@ export async function updateBookingStatus(
     }
   } catch (error) {
     console.error('Error updating booking status:', error);
+    throw error;
+  }
+}
+
+// Delete a booking
+export async function deleteBooking(salonId: string, bookingId: string): Promise<void> {
+  try {
+    if (!salonId || !bookingId) throw new Error('Salon ID and Booking ID are required');
+    
+    console.log(`Deleting booking ${bookingId} from salon ${salonId}`);
+    
+    const bookingRef = doc(db, `salons/${salonId}/bookings`, bookingId);
+    
+    // Check if booking exists
+    const bookingDoc = await getDoc(bookingRef);
+    if (!bookingDoc.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    // Delete the booking
+    await deleteDoc(bookingRef);
+    
+    console.log(`Booking ${bookingId} successfully deleted`);
+  } catch (error) {
+    console.error('Error deleting booking:', error);
     throw error;
   }
 } 

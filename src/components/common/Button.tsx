@@ -1,10 +1,10 @@
 import { ButtonHTMLAttributes } from 'react';
-import { DivideIcon as LucideIcon } from 'lucide-react';
+import { DivideIcon, LucideIcon } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
-  icon?: LucideIcon;
+  icon?: typeof DivideIcon;
   iconPosition?: 'left' | 'right';
   loading?: boolean;
 }
@@ -26,6 +26,7 @@ export default function Button({
     secondary: 'bg-secondary hover:bg-secondary-dark text-white focus:ring-secondary/50',
     outline: 'border border-primary text-primary hover:bg-primary/10 focus:ring-primary/50',
     ghost: 'text-primary hover:bg-primary/10 focus:ring-primary/50',
+    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500/50',
   };
   
   const sizes = {

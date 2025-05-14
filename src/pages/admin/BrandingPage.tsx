@@ -32,6 +32,8 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   const [savingChanges, setSavingChanges] = useState(false);
   const [error, setError] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showLinkCopied, setShowLinkCopied] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   
   const [businessHours, setBusinessHours] = useState({
     monday: { open: '09:00', close: '18:00', isOpen: true },
@@ -50,9 +52,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   });
   
   const [bookingUrl, setBookingUrl] = useState('');
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  
-  const [showLinkCopied, setShowLinkCopied] = useState(false);
   
   useEffect(() => {
     if (salonId) {

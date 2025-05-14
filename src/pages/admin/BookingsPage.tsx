@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Plus, User, Clock, Calendar, Tag } from 'lucide-react';
+import { Search, Filter, Plus, User, Clock, Calendar, Tag, Check, X, Trash } from 'lucide-react';
 import Button from '../../components/common/Button';
-import { getSalonBookings, Booking } from '../../firebase';
+import { getSalonBookings, Booking, updateBookingStatus, deleteBooking } from '../../firebase';
 import { format } from 'date-fns';
 import AddBookingModal from '../../components/bookings/AddBookingModal';
 import BookingActions from '../../components/bookings/BookingActions';
@@ -17,6 +17,11 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [error, setError] = useState('');
+  const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
+  const [processingBulkAction, setProcessingBulkAction] = useState(false);
+  
+  // Track if we're selecting all visible bookings
+  const [selectAll, setSelectAll] = useState(false);
   
   useEffect(() => {
     if (salonId) {
@@ -31,6 +36,10 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
       
       const bookingsData = await getSalonBookings(salonId);
       setBookings(bookingsData);
+      
+      // Clear selected bookings when reloading
+      setSelectedBookings([]);
+      setSelectAll(false);
     } catch (error) {
       console.error('Error loading bookings:', error);
       setError('Failed to load bookings');
@@ -47,6 +56,60 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
     
     return matchesSearch && matchesStatus;
   });
+  
+  // Toggle selection of a single booking
+  const toggleBookingSelection = (bookingId: string) => {
+    setSelectedBookings(prev => 
+      prev.includes(bookingId)
+        ? prev.filter(id => id !== bookingId)
+        : [...prev, bookingId]
+    );
+  };
+  
+  // Toggle selection of all visible bookings
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedBookings([]);
+    } else {
+      setSelectedBookings(filteredBookings.map(booking => booking.id));
+    }
+    setSelectAll(!selectAll);
+  };
+  
+  // Perform bulk action on selected bookings
+  const performBulkAction = async (action: 'confirm' | 'cancel' | 'delete') => {
+    if (selectedBookings.length === 0) return;
+    
+    try {
+      setProcessingBulkAction(true);
+      
+      const promises = selectedBookings.map(bookingId => {
+        if (action === 'confirm') {
+          return updateBookingStatus(salonId, bookingId, 'confirmed');
+        } else if (action === 'cancel') {
+          return updateBookingStatus(salonId, bookingId, 'cancelled');
+        } else {
+          // Use the deleteBooking function for delete actions
+          return deleteBooking(salonId, bookingId);
+        }
+      });
+      
+      await Promise.all(promises);
+      
+      // Reload bookings after bulk action
+      await loadBookings();
+      
+      // Show success message
+      alert(`Successfully ${action === 'confirm' ? 'confirmed' : action === 'cancel' ? 'cancelled' : 'deleted'} ${selectedBookings.length} bookings`);
+    } catch (error) {
+      console.error(`Error performing bulk ${action}:`, error);
+      setError(`Failed to ${action} selected bookings`);
+    } finally {
+      setProcessingBulkAction(false);
+      setSelectedBookings([]);
+      setSelectAll(false);
+    }
+  };
   
   function formatBookingDate(timestamp: any) {
     try {
@@ -132,6 +195,47 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
         </div>
       )}
       
+      {/* Bulk Actions Bar - show when items are selected */}
+      {selectedBookings.length > 0 && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-4 flex items-center justify-between">
+          <div className="text-sm font-medium text-gray-700">
+            {selectedBookings.length} booking{selectedBookings.length !== 1 ? 's' : ''} selected
+          </div>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => performBulkAction('confirm')}
+              disabled={processingBulkAction}
+              className="flex items-center text-green-600 border-green-600 hover:bg-green-50"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Confirm All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => performBulkAction('cancel')}
+              disabled={processingBulkAction}
+              className="flex items-center text-red-600 border-red-600 hover:bg-red-50"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => performBulkAction('delete')}
+              disabled={processingBulkAction}
+              className="flex items-center text-gray-600 border-gray-600 hover:bg-gray-100"
+            >
+              <Trash className="h-4 w-4 mr-1" />
+              Delete All
+            </Button>
+          </div>
+        </div>
+      )}
+      
       {/* Bookings table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         {loading ? (
@@ -143,6 +247,16 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th scope="col" className="px-4 py-3 text-left">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary"
+                        checked={selectAll}
+                        onChange={toggleSelectAll}
+                      />
+                    </div>
+                  </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Customer
                   </th>
@@ -162,7 +276,15 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredBookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-gray-50">
+                  <tr key={booking.id} className={`hover:bg-gray-50 ${selectedBookings.includes(booking.id) ? 'bg-blue-50' : ''}`}>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary"
+                        checked={selectedBookings.includes(booking.id)}
+                        onChange={() => toggleBookingSelection(booking.id)}
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="bg-primary/10 rounded-full p-2 mr-3">

@@ -14,6 +14,8 @@ export {
   slugifySalonName,
   updateSalonMapping,
   getSalonIdFromSlug,
+  deleteSalon,
+  deleteUserAccount,
   type Salon,
   type SalonMapping
 } from './salons';
@@ -46,6 +48,7 @@ export {
   getBooking,
   createBooking,
   updateBookingStatus,
+  deleteBooking,
   type Booking
 } from './bookings';
 

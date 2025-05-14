@@ -10,9 +10,12 @@ import {
   serverTimestamp,
   DocumentReference,
   DocumentData,
-  Timestamp
+  Timestamp,
+  deleteDoc,
+  writeBatch
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
+import { deleteUser } from 'firebase/auth';
 
 // Types
 export interface Salon {
@@ -188,6 +191,104 @@ export async function getSalonIdFromSlug(slug: string): Promise<string | null> {
     return mapping.salonId;
   } catch (error) {
     console.error('Error getting salon ID from slug:', error);
+    throw error;
+  }
+}
+
+// Delete a salon and all its related data
+export async function deleteSalon(salonId: string): Promise<void> {
+  try {
+    if (!salonId) throw new Error('Salon ID is required');
+    
+    console.log('Deleting salon:', salonId);
+    
+    // Step 1: Get the salon to check if it exists and get its name for mapping
+    const salonRef = doc(db, 'salons', salonId);
+    const salonDoc = await getDoc(salonRef);
+    
+    if (!salonDoc.exists()) {
+      throw new Error(`Salon with ID ${salonId} does not exist`);
+    }
+    
+    const salonData = salonDoc.data() as Salon;
+    const slug = slugifySalonName(salonData.name);
+    
+    // Create a batch for deleting related collections
+    const batch = writeBatch(db);
+    
+    // Step 2: Delete all services of the salon
+    const servicesQuery = query(collection(db, 'services'), where('salonId', '==', salonId));
+    const servicesSnapshot = await getDocs(servicesQuery);
+    servicesSnapshot.forEach(serviceDoc => {
+      batch.delete(serviceDoc.ref);
+    });
+    
+    // Step 3: Delete all employees of the salon
+    const employeesQuery = query(collection(db, 'employees'), where('salonId', '==', salonId));
+    const employeesSnapshot = await getDocs(employeesQuery);
+    employeesSnapshot.forEach(employeeDoc => {
+      batch.delete(employeeDoc.ref);
+    });
+    
+    // Step 4: Delete all bookings of the salon
+    const bookingsQuery = query(collection(db, 'bookings'), where('salonId', '==', salonId));
+    const bookingsSnapshot = await getDocs(bookingsQuery);
+    bookingsSnapshot.forEach(bookingDoc => {
+      batch.delete(bookingDoc.ref);
+    });
+    
+    // Step 5: Delete all message templates of the salon
+    const templatesQuery = query(collection(db, 'messageTemplates'), where('salonId', '==', salonId));
+    const templatesSnapshot = await getDocs(templatesQuery);
+    templatesSnapshot.forEach(templateDoc => {
+      batch.delete(templateDoc.ref);
+    });
+    
+    // Step 6: Delete the salon mapping
+    const mappingRef = doc(db, 'salonMappings', slug);
+    const mappingDoc = await getDoc(mappingRef);
+    if (mappingDoc.exists()) {
+      batch.delete(mappingRef);
+    }
+    
+    // Commit the batch operations
+    await batch.commit();
+    
+    // Step 7: Finally delete the salon itself
+    await deleteDoc(salonRef);
+    
+    console.log('Salon and all related data deleted successfully');
+  } catch (error) {
+    console.error('Error deleting salon:', error);
+    throw error;
+  }
+}
+
+// Delete a salon and all its related data, plus the user account
+export async function deleteUserAccount(userId: string, salonId: string): Promise<void> {
+  try {
+    if (!userId || !salonId) throw new Error('User ID and Salon ID are required');
+    
+    console.log('Deleting salon and user account:', salonId, userId);
+    
+    // Step 1: Delete the salon using the existing function
+    await deleteSalon(salonId);
+    
+    // Step 2: Delete the user from Firestore
+    const userDocRef = doc(db, 'users', userId);
+    await deleteDoc(userDocRef);
+    
+    // Step 3: Delete the Firebase Auth user
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.uid === userId) {
+      await deleteUser(currentUser);
+    } else {
+      console.warn('Could not delete the authentication record: current user mismatch');
+    }
+    
+    console.log('User account and salon deleted successfully');
+  } catch (error) {
+    console.error('Error deleting user account:', error);
     throw error;
   }
 } 

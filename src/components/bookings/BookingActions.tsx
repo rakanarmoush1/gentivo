@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, Check, X, MessageSquare, Clock } from 'lucide-react';
-import { Booking, updateBookingStatus } from '../../firebase';
+import { ChevronDown, Check, X, MessageSquare, Clock, Trash } from 'lucide-react';
+import { Booking, updateBookingStatus, deleteBooking } from '../../firebase';
 
 interface BookingActionsProps {
   booking: Booking;
@@ -21,6 +21,24 @@ export default function BookingActions({ booking, salonId, onStatusUpdated }: Bo
     } catch (error) {
       console.error(`Error updating booking to ${status}:`, error);
       alert(`Failed to update booking status to ${status}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  async function handleDeleteBooking() {
+    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      await deleteBooking(salonId, booking.id);
+      setOpen(false);
+      onStatusUpdated();
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      alert('Failed to delete booking');
     } finally {
       setLoading(false);
     }
@@ -74,6 +92,14 @@ export default function BookingActions({ booking, salonId, onStatusUpdated }: Bo
             >
               <X size={16} className="mr-2 text-red-500" />
               Cancel Booking
+            </button>
+            <button
+              onClick={handleDeleteBooking}
+              disabled={loading}
+              className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
+            >
+              <Trash size={16} className="mr-2 text-red-500" />
+              Delete Booking
             </button>
           </div>
           <div className="py-1">

@@ -3,6 +3,7 @@ import { Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-ro
 import { Scissors, Calendar, Users, Settings, ChevronRight, Menu, X, UserPlus, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
+import DeleteAccountButton from '../../components/admin/DeleteAccountButton';
 import BookingsPage from './BookingsPage';
 import BrandingPage from './BrandingPage';
 import ServicesPage from './ServicesPage';
@@ -110,6 +111,9 @@ export default function AdminDashboard() {
                   {item.name}
                 </NavLink>
               ))}
+              
+              {/* Add Delete Account Button */}
+              {selectedSalonId && <DeleteAccountButton salonId={selectedSalonId} />}
             </nav>
           </div>
           
@@ -169,6 +173,9 @@ export default function AdminDashboard() {
                   {item.name}
                 </NavLink>
               ))}
+              
+              {/* Add Delete Account Button */}
+              {selectedSalonId && <DeleteAccountButton salonId={selectedSalonId} />}
             </nav>
           </div>
           
