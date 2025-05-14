@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import BookingPage from './pages/BookingPage';
+import BookingByNamePage from './pages/BookingByNamePage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -22,6 +23,7 @@ function App() {
             } 
           />
           <Route path="/booking/:salonId" element={<BookingPage />} />
+          <Route path="/booking/name/:salonName" element={<BookingByNamePage />} />
         </Routes>
       </Router>
     </AuthProvider>

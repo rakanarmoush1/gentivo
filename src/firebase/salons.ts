@@ -134,4 +134,60 @@ export async function getUserSalons(userId: string): Promise<Salon[]> {
     console.error('Error getting user salons:', error);
     throw error;
   }
+}
+
+// Utility function to create a URL-friendly slug from a salon name
+export const slugifySalonName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters
+    .replace(/-+/g, '-') // Replace multiple hyphens with a single one
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+};
+
+// Interface for salon mappings
+export interface SalonMapping {
+  slug: string;  // e.g., "salonname"
+  salonId: string;  // e.g., "Rqc7SP8BSoR5iHGuzpJJ"
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+// Update or create a salon mapping for a given salon name and ID
+export async function updateSalonMapping(salonName: string, salonId: string): Promise<void> {
+  try {
+    const slug = slugifySalonName(salonName);
+    console.log(`Creating/updating mapping: ${slug} -> ${salonId}`);
+    
+    await setDoc(doc(db, 'salonMappings', slug), {
+      slug,
+      salonId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating salon mapping:', error);
+    throw error;
+  }
+}
+
+// Get a salon ID from a slug
+export async function getSalonIdFromSlug(slug: string): Promise<string | null> {
+  try {
+    console.log(`Looking up salon ID for slug: ${slug}`);
+    const mappingDoc = await getDoc(doc(db, 'salonMappings', slug));
+    
+    if (!mappingDoc.exists()) {
+      console.log(`No mapping found for slug: ${slug}`);
+      return null;
+    }
+    
+    const mapping = mappingDoc.data() as SalonMapping;
+    console.log(`Found mapping: ${slug} -> ${mapping.salonId}`);
+    return mapping.salonId;
+  } catch (error) {
+    console.error('Error getting salon ID from slug:', error);
+    throw error;
+  }
 } 

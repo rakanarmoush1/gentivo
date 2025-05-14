@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Upload, Plus, Minus, Palette, Image as ImageIcon, Check, Link as LinkIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import { getSalon, updateSalon, Service as FirestoreService, getSalonServices, createService, deleteService, updateService } from '../../firebase';
+import { getSalon, updateSalon, Service as FirestoreService, getSalonServices, createService, deleteService, updateService, updateSalonMapping, slugifySalonName } from '../../firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { firebaseApp } from '../../firebase/config';
 
@@ -16,16 +16,6 @@ interface Service {
 interface BrandingPageProps {
   salonId: string;
 }
-
-// Utility function to create a URL-friendly slug from a salon name
-const slugifySalonName = (name: string): string => {
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters
-    .replace(/-+/g, '-') // Replace multiple hyphens with a single one
-    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
-};
 
 export default function BrandingPage({ salonId }: BrandingPageProps) {
   const [salonInfo, setSalonInfo] = useState({
@@ -95,6 +85,9 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       const slugifiedName = slugifySalonName(salon.name);
       setBookingUrl(`${slugifiedName}.gentivo.ai`);
       
+      // Update the salon name mapping in Firestore
+      await updateSalonMapping(salon.name, salonId);
+      
       // Get salon services
       const salonServices = await getSalonServices(salonId);
       setServices(salonServices.map(service => ({
@@ -123,6 +116,12 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     if (name === 'name') {
       const slugifiedName = slugifySalonName(value);
       setBookingUrl(`${slugifiedName}.gentivo.ai`);
+      
+      // Update the mapping in Firestore when name changes
+      // No need to await this operation
+      updateSalonMapping(value, salonId).catch(err => {
+        console.error('Error updating salon mapping:', err);
+      });
     }
   };
   
@@ -227,6 +226,9 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         businessHours: businessHours
       });
       
+      // Update the salon name mapping
+      await updateSalonMapping(salonInfo.name, salonId);
+      
       // Show success message
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -239,8 +241,8 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   };
   
   const generateBookingLink = () => {
-    // Copy the booking URL to clipboard
-    navigator.clipboard.writeText(bookingUrl);
+    // Copy the booking URL to clipboard with https:// prefix
+    navigator.clipboard.writeText(`https://${bookingUrl}`);
     setShowLinkCopied(true);
     setTimeout(() => setShowLinkCopied(false), 2000);
   };

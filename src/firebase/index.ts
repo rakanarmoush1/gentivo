@@ -11,7 +11,11 @@ export {
   createSalon,
   updateSalon,
   getUserSalons,
-  type Salon
+  slugifySalonName,
+  updateSalonMapping,
+  getSalonIdFromSlug,
+  type Salon,
+  type SalonMapping
 } from './salons';
 
 // Export service-related functions
