@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Scissors, Calendar, Users, Settings, ChevronRight, Menu, X, UserPlus, BarChart, MessageSquare } from 'lucide-react';
+import { Scissors, Calendar, Users, Settings, ChevronRight, Menu, X, UserPlus, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import BookingsPage from './BookingsPage';
-import CalendarPage from './CalendarPage';
 import BrandingPage from './BrandingPage';
 import ServicesPage from './ServicesPage';
 import EmployeesPage from './EmployeesPage';
 import MessageTemplatesPage from './MessageTemplatesPage';
 import { getSalonId } from '../../utils/getSalonId';
-import { getUserSalons } from '../../firebase';
+import { getUserSalons, updateSalon } from '../../firebase';
 
 export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -48,11 +47,17 @@ export default function AdminDashboard() {
     }
   }
   
+  async function handleSalonChange(salonId: string) {
+    setSelectedSalonId(salonId);
+    // Force reload current page to update data
+    const currentPath = location.pathname;
+    navigate(currentPath);
+  }
+  
   const navigation = [
     { name: 'Bookings', path: '/admin', icon: Calendar },
-    { name: 'Calendar', path: '/admin/calendar', icon: BarChart },
     { name: 'Services', path: '/admin/services', icon: Settings },
-    { name: 'Employees', path: '/admin/employees', icon: UserPlus },
+    { name: 'Staff', path: '/admin/employees', icon: UserPlus },
     { name: 'Message Templates', path: '/admin/messages', icon: MessageSquare },
     { name: 'Salon Branding', path: '/admin/branding', icon: Settings },
   ];
@@ -115,7 +120,7 @@ export default function AdminDashboard() {
                 {userSalons.length > 0 && (
                   <select
                     value={selectedSalonId}
-                    onChange={(e) => setSelectedSalonId(e.target.value)}
+                    onChange={(e) => handleSalonChange(e.target.value)}
                     className="mt-1 text-xs text-gray-500 bg-transparent border-none"
                   >
                     {userSalons.map(salon => (
@@ -174,7 +179,7 @@ export default function AdminDashboard() {
                 {userSalons.length > 0 && (
                   <select
                     value={selectedSalonId}
-                    onChange={(e) => setSelectedSalonId(e.target.value)}
+                    onChange={(e) => handleSalonChange(e.target.value)}
                     className="mt-1 text-xs text-gray-500 bg-transparent border-none"
                   >
                     {userSalons.map(salon => (
@@ -205,30 +210,31 @@ export default function AdminDashboard() {
                   <span>Dashboard</span>
                   <ChevronRight className="mx-2 h-4 w-4" />
                   {location.pathname === '/admin' && <span className="font-medium text-gray-900">Bookings</span>}
-                  {location.pathname === '/admin/calendar' && <span className="font-medium text-gray-900">Calendar</span>}
                   {location.pathname === '/admin/services' && <span className="font-medium text-gray-900">Services</span>}
-                  {location.pathname === '/admin/employees' && <span className="font-medium text-gray-900">Employees</span>}
+                  {location.pathname === '/admin/employees' && <span className="font-medium text-gray-900">Staff</span>}
                   {location.pathname === '/admin/messages' && <span className="font-medium text-gray-900">Message Templates</span>}
                   {location.pathname === '/admin/branding' && <span className="font-medium text-gray-900">Salon Branding</span>}
                 </div>
                 
                 {/* Salon booking preview button */}
                 {selectedSalonId && (
-                  <Link to={`/booking/${selectedSalonId}`} className="ml-auto">
-                    <Button variant="outline" size="sm">
-                      View Booking Page
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open(`/booking/${selectedSalonId}`, '_blank', 'noopener,noreferrer')}
+                    className="ml-auto"
+                  >
+                    Preview Booking Page
+                  </Button>
                 )}
               </div>
               
               {/* Page content */}
               <Routes>
                 <Route path="/" element={<BookingsPage salonId={selectedSalonId} />} />
-                <Route path="/calendar" element={<CalendarPage salonId={selectedSalonId} />} />
                 <Route path="/services" element={<ServicesPage salonId={selectedSalonId} />} />
                 <Route path="/employees" element={<EmployeesPage salonId={selectedSalonId} />} />
-                <Route path="/messages" element={<MessageTemplatesPage />} />
+                <Route path="/messages" element={<MessageTemplatesPage salonId={selectedSalonId} />} />
                 <Route path="/branding" element={<BrandingPage salonId={selectedSalonId} />} />
               </Routes>
             </div>

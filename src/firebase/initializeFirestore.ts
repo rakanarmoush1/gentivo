@@ -9,6 +9,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { initializeMessageTemplates } from './messageTemplates';
 
 /**
  * Initializes Firestore collections if they don't exist
@@ -16,12 +17,15 @@ import { db } from './firebase';
  */
 export async function initializeFirestore(userId: string): Promise<void> {
   try {
+    console.log('Initializing Firestore for user:', userId);
+    
     // Check if the user exists in Firestore
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
 
     // Create user document if it doesn't exist
     if (!userDoc.exists()) {
+      console.log('Creating user document');
       await setDoc(userRef, {
         uid: userId,
         role: 'salon',
@@ -29,14 +33,17 @@ export async function initializeFirestore(userId: string): Promise<void> {
       });
     }
 
-    // Check if salons collection exists
+    // Check if salons collection exists for this user
     const salonsRef = collection(db, 'salons');
     const salonsQuery = query(salonsRef, limit(1));
     const salonsSnapshot = await getDocs(salonsQuery);
+    let salonId: string;
 
     // Create default salon if none exists for this user
     if (salonsSnapshot.empty) {
+      console.log('Creating default salon');
       const salonRef = doc(collection(db, 'salons'));
+      salonId = salonRef.id;
       
       await setDoc(salonRef, {
         name: 'Your Salon',
@@ -51,7 +58,7 @@ export async function initializeFirestore(userId: string): Promise<void> {
       // Create the basic collections for this salon
       
       // Services collection (sub-collection of salon)
-      const servicesRef = collection(db, `salons/${salonRef.id}/services`);
+      const servicesRef = collection(db, `salons/${salonId}/services`);
       
       const defaultServices = [
         { name: 'Manicure', duration: 30, price: 25 },
@@ -60,6 +67,7 @@ export async function initializeFirestore(userId: string): Promise<void> {
         { name: 'Full Set', duration: 60, price: 50 }
       ];
       
+      console.log('Creating default services');
       for (const service of defaultServices) {
         await setDoc(doc(servicesRef), {
           ...service,
@@ -68,50 +76,30 @@ export async function initializeFirestore(userId: string): Promise<void> {
       }
       
       // Update salon to mark default services as created
-      await setDoc(doc(db, 'salons', salonRef.id), {
+      await setDoc(doc(db, 'salons', salonId), {
         defaultServicesCreated: true
       }, { merge: true });
       
       // Create empty bookings collection (sub-collection of salon)
-      collection(db, `salons/${salonRef.id}/bookings`);
-    }
-
-    // Initialize notification templates collection if it doesn't exist
-    const templatesRef = collection(db, 'messageTemplates');
-    const templatesQuery = query(templatesRef, limit(1));
-    const templatesSnapshot = await getDocs(templatesQuery);
-
-    if (templatesSnapshot.empty) {
-      // Create default templates
-      const defaultTemplates = [
-        {
-          type: 'booking_confirmation',
-          name: 'Booking Confirmation',
-          template: 'Hi {{name}}, your appointment for {{service}} has been confirmed for {{time}}. We look forward to seeing you at our salon!',
-          createdAt: serverTimestamp()
-        },
-        {
-          type: 'booking_reminder_12h',
-          name: 'Reminder (12 hours before)',
-          template: 'Hi {{name}}, this is a reminder that your appointment for {{service}} is tomorrow at {{time}}. Please let us know if you need to reschedule.',
-          createdAt: serverTimestamp()
-        },
-        {
-          type: 'booking_reminder_1h',
-          name: 'Reminder (1 hour before)',
-          template: 'Hi {{name}}, your appointment for {{service}} is in 1 hour at {{time}}. We look forward to seeing you soon!',
-          createdAt: serverTimestamp()
-        },
-        {
-          type: 'booking_review',
-          name: 'Review Request',
-          template: 'Hi {{name}}, thank you for visiting our salon! We hope you enjoyed your {{service}}. We would appreciate if you could take a moment to leave us a review.',
-          createdAt: serverTimestamp()
+      collection(db, `salons/${salonId}/bookings`);
+      
+      // Initialize message templates for this salon
+      await initializeMessageTemplates(salonId);
+    } else {
+      // If salons exist, get the ones belonging to this user
+      const userSalonsQuery = query(collection(db, 'salons'), limit(1));
+      const userSalonsSnapshot = await getDocs(userSalonsQuery);
+      
+      if (!userSalonsSnapshot.empty) {
+        // For each salon, ensure message templates are initialized
+        for (const salonDoc of userSalonsSnapshot.docs) {
+          salonId = salonDoc.id;
+          
+          // Initialize message templates for this salon if it belongs to the user
+          if (salonDoc.data().createdBy === userId) {
+            await initializeMessageTemplates(salonId);
+          }
         }
-      ];
-
-      for (const template of defaultTemplates) {
-        await setDoc(doc(templatesRef), template);
       }
     }
 
@@ -121,6 +109,7 @@ export async function initializeFirestore(userId: string): Promise<void> {
     // Initialize notifications logs collection if it doesn't exist
     collection(db, 'notifications/logs');
 
+    console.log('Firestore initialization complete');
   } catch (error) {
     console.error('Error initializing Firestore:', error);
     throw error;

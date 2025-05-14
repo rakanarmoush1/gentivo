@@ -19,6 +19,8 @@ export interface Service {
   name: string;
   duration: number; // in minutes
   price: number;
+  description?: string;
+  assignedEmployees?: string[]; // Add assigned employees
   createdAt: Timestamp;
 }
 

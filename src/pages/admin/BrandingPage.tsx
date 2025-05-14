@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Upload, Plus, Minus, Palette, Image, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Upload, Plus, Minus, Palette, Image as ImageIcon, Check, Link as LinkIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import { getSalon, updateSalon, Service as FirestoreService, getSalonServices, createService, deleteService, updateService } from '../../firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { firebaseApp } from '../../firebase/config';
 
 interface Service {
   id: string;
@@ -10,24 +13,35 @@ interface Service {
   price: number;
 }
 
-export default function BrandingPage() {
+interface BrandingPageProps {
+  salonId: string;
+}
+
+// Utility function to create a URL-friendly slug from a salon name
+const slugifySalonName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters
+    .replace(/-+/g, '-') // Replace multiple hyphens with a single one
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+};
+
+export default function BrandingPage({ salonId }: BrandingPageProps) {
   const [salonInfo, setSalonInfo] = useState({
-    name: 'Elegance Nail Spa',
-    logo: 'https://images.pexels.com/photos/114977/pexels-photo-114977.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    address: '123 Rainbow St, Amman, Jordan',
-    phone: '+962 79 123 4567',
-    primaryColor: '#F9A8D4',
-    accentColor: '#5EEAD4'
+    name: '',
+    logoUrl: '',
+    address: '',
+    phone: '',
+    brandPrimaryColor: '#4f46e5',
+    brandSecondaryColor: '#f97316'
   });
   
-  const [services, setServices] = useState<Service[]>([
-    { id: 'service1', name: 'Classic Manicure', duration: 30, price: 15 },
-    { id: 'service2', name: 'Gel Manicure', duration: 45, price: 25 },
-    { id: 'service3', name: 'Classic Pedicure', duration: 45, price: 20 },
-    { id: 'service4', name: 'Gel Pedicure', duration: 60, price: 30 },
-    { id: 'service5', name: 'Nail Art', duration: 30, price: 15 },
-    { id: 'service6', name: 'Full Set Acrylic', duration: 90, price: 50 }
-  ]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingChanges, setSavingChanges] = useState(false);
+  const [error, setError] = useState('');
+  const [savedSuccess, setSavedSuccess] = useState(false);
   
   const [businessHours, setBusinessHours] = useState({
     monday: { open: '09:00', close: '18:00', isOpen: true },
@@ -45,8 +59,58 @@ export default function BrandingPage() {
     price: 0
   });
   
-  const [bookingUrl, setBookingUrl] = useState('elegance.gentivo.ai');
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [bookingUrl, setBookingUrl] = useState('');
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  
+  const [showLinkCopied, setShowLinkCopied] = useState(false);
+  
+  useEffect(() => {
+    if (salonId) {
+      loadSalonData();
+    }
+  }, [salonId]);
+  
+  async function loadSalonData() {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Get salon info
+      const salon = await getSalon(salonId);
+      if (!salon) {
+        setError('Salon not found');
+        return;
+      }
+      
+      setSalonInfo({
+        name: salon.name || '',
+        logoUrl: salon.logoUrl || '',
+        address: salon.address || '',
+        phone: salon.phone || '',
+        brandPrimaryColor: salon.brandPrimaryColor || '#4f46e5',
+        brandSecondaryColor: salon.brandSecondaryColor || '#f97316'
+      });
+      
+      // Generate a proper URL-friendly name for the salon domain
+      const slugifiedName = slugifySalonName(salon.name);
+      setBookingUrl(`${slugifiedName}.gentivo.ai`);
+      
+      // Get salon services
+      const salonServices = await getSalonServices(salonId);
+      setServices(salonServices.map(service => ({
+        id: service.id,
+        name: service.name,
+        duration: service.duration,
+        price: service.price
+      })));
+      
+    } catch (error) {
+      console.error('Error loading salon data:', error);
+      setError('Failed to load salon data');
+    } finally {
+      setLoading(false);
+    }
+  }
   
   const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -54,6 +118,12 @@ export default function BrandingPage() {
       ...salonInfo,
       [name]: value
     });
+    
+    // Update booking URL when salon name changes
+    if (name === 'name') {
+      const slugifiedName = slugifySalonName(value);
+      setBookingUrl(`${slugifiedName}.gentivo.ai`);
+    }
   };
   
   const handleNewServiceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,16 +134,35 @@ export default function BrandingPage() {
     });
   };
   
-  const addService = () => {
+  const addService = async () => {
+    if (!salonId) return;
     if (newService.name && newService.duration > 0 && newService.price > 0) {
-      const newId = `service${services.length + 1}`;
-      setServices([...services, { ...newService, id: newId }]);
-      setNewService({ name: '', duration: 30, price: 0 });
+      try {
+        // Add to Firestore
+        const serviceId = await createService(salonId, newService);
+        
+        // Update local state
+        setServices([...services, { ...newService, id: serviceId }]);
+        setNewService({ name: '', duration: 30, price: 0 });
+      } catch (error) {
+        console.error('Error adding service:', error);
+        alert('Failed to add service');
+      }
     }
   };
   
-  const removeService = (id: string) => {
-    setServices(services.filter(service => service.id !== id));
+  const removeService = async (id: string) => {
+    if (!salonId) return;
+    try {
+      // Remove from Firestore
+      await deleteService(salonId, id);
+      
+      // Update local state
+      setServices(services.filter(service => service.id !== id));
+    } catch (error) {
+      console.error('Error removing service:', error);
+      alert('Failed to remove service');
+    }
   };
   
   const handleBusinessHoursChange = (
@@ -90,15 +179,92 @@ export default function BrandingPage() {
     });
   };
   
-  const saveChanges = () => {
-    // In a real app, save to Firebase
-    console.log('Salon info:', salonInfo);
-    console.log('Services:', services);
-    console.log('Business hours:', businessHours);
-    
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+  const handleLogoUpload = () => {
+    logoInputRef.current?.click();
   };
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !salonId) return;
+    
+    try {
+      const storage = getStorage(firebaseApp);
+      const logoRef = ref(storage, `salons/${salonId}/logo_${Date.now()}`);
+      
+      // Upload file
+      await uploadBytes(logoRef, file);
+      
+      // Get URL
+      const downloadUrl = await getDownloadURL(logoRef);
+      
+      // Update salon info
+      setSalonInfo({
+        ...salonInfo,
+        logoUrl: downloadUrl
+      });
+      
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      alert('Failed to upload logo');
+    }
+  };
+  
+  const saveChanges = async () => {
+    if (!salonId) return;
+    
+    try {
+      setSavingChanges(true);
+      setError('');
+      
+      // Update salon info in Firestore
+      await updateSalon(salonId, {
+        name: salonInfo.name,
+        logoUrl: salonInfo.logoUrl,
+        address: salonInfo.address,
+        phone: salonInfo.phone,
+        brandPrimaryColor: salonInfo.brandPrimaryColor,
+        brandSecondaryColor: salonInfo.brandSecondaryColor,
+        businessHours: businessHours
+      });
+      
+      // Show success message
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      setError('Failed to save changes');
+    } finally {
+      setSavingChanges(false);
+    }
+  };
+  
+  const generateBookingLink = () => {
+    // Copy the booking URL to clipboard
+    navigator.clipboard.writeText(bookingUrl);
+    setShowLinkCopied(true);
+    setTimeout(() => setShowLinkCopied(false), 2000);
+  };
+  
+  const previewBookingPage = () => {
+    // Open the booking page in a new tab
+    window.open(`/booking/${salonId}`, '_blank', 'noopener,noreferrer');
+  };
+  
+  if (loading) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-gray-500">Loading salon information...</p>
+      </div>
+    );
+  }
+  
+  if (!salonId) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-gray-500">No salon selected</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -106,6 +272,12 @@ export default function BrandingPage() {
         <h1 className="text-2xl font-bold text-gray-900">Salon Branding</h1>
         <p className="text-gray-600">Customize your salon's appearance and services</p>
       </div>
+      
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+          {error}
+        </div>
+      )}
       
       {savedSuccess && (
         <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6 flex items-center">
@@ -133,24 +305,35 @@ export default function BrandingPage() {
                 Salon Logo
               </label>
               <div className="flex items-center">
-                {salonInfo.logo && (
+                {salonInfo.logoUrl && (
                   <img 
-                    src={salonInfo.logo} 
+                    src={salonInfo.logoUrl} 
                     alt="Salon Logo" 
                     className="w-12 h-12 rounded-full object-cover mr-4"
                   />
                 )}
                 <div className="flex-grow">
                   <Input
-                    name="logo"
-                    value={salonInfo.logo}
+                    name="logoUrl"
+                    value={salonInfo.logoUrl}
                     onChange={handleInfoChange}
                     placeholder="Enter logo URL or upload"
                   />
                 </div>
-                <button className="ml-2 p-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                <button 
+                  className="ml-2 p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                  onClick={handleLogoUpload}
+                  type="button"
+                >
                   <Upload className="h-5 w-5 text-gray-500" />
                 </button>
+                <input 
+                  type="file" 
+                  ref={logoInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
               </div>
             </div>
             
@@ -176,14 +359,17 @@ export default function BrandingPage() {
                   Primary Color
                 </label>
                 <div className="flex items-center">
-                  <div 
-                    className="w-8 h-8 rounded mr-2 border shadow-sm" 
-                    style={{ backgroundColor: salonInfo.primaryColor }}
-                  ></div>
+                  <input
+                    type="color"
+                    name="brandPrimaryColor"
+                    value={salonInfo.brandPrimaryColor}
+                    onChange={handleInfoChange}
+                    className="w-8 h-8 rounded mr-2 border shadow-sm cursor-pointer"
+                  />
                   <Input
-                    name="primaryColor"
+                    name="brandPrimaryColor"
                     type="text"
-                    value={salonInfo.primaryColor}
+                    value={salonInfo.brandPrimaryColor}
                     onChange={handleInfoChange}
                   />
                 </div>
@@ -194,14 +380,17 @@ export default function BrandingPage() {
                   Accent Color
                 </label>
                 <div className="flex items-center">
-                  <div 
-                    className="w-8 h-8 rounded mr-2 border shadow-sm" 
-                    style={{ backgroundColor: salonInfo.accentColor }}
-                  ></div>
+                  <input
+                    type="color"
+                    name="brandSecondaryColor"
+                    value={salonInfo.brandSecondaryColor}
+                    onChange={handleInfoChange}
+                    className="w-8 h-8 rounded mr-2 border shadow-sm cursor-pointer"
+                  />
                   <Input
-                    name="accentColor"
+                    name="brandSecondaryColor"
                     type="text"
-                    value={salonInfo.accentColor}
+                    value={salonInfo.brandSecondaryColor}
                     onChange={handleInfoChange}
                   />
                 </div>
@@ -216,16 +405,40 @@ export default function BrandingPage() {
             <h2 className="text-lg font-semibold mb-4">Booking URL</h2>
             
             <div className="space-y-4">
-              <Input
-                label="Custom Booking URL"
-                value={bookingUrl}
-                onChange={(e) => setBookingUrl(e.target.value)}
-                helperText="This is the URL customers will use to book appointments"
-              />
+              <div className="relative">
+                <Input
+                  label="Custom Booking URL"
+                  value={bookingUrl}
+                  disabled
+                  helperText="This is your booking URL based on your salon ID"
+                />
+                {showLinkCopied && (
+                  <div className="absolute right-0 -bottom-6 text-xs text-green-600">
+                    Link copied to clipboard!
+                  </div>
+                )}
+                <button 
+                  onClick={generateBookingLink}
+                  className="absolute right-2 top-7 p-1 text-gray-400 hover:text-gray-600"
+                  title="Copy booking URL"
+                >
+                  <LinkIcon className="h-4 w-4" />
+                </button>
+              </div>
               
-              <div className="pt-2">
-                <Button className="w-full">
-                  Generate Booking Page
+              <div className="pt-2 grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={generateBookingLink} 
+                  className="w-full"
+                >
+                  Copy Booking URL
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  onClick={previewBookingPage}
+                >
+                  Preview Booking
                 </Button>
               </div>
             </div>
@@ -235,18 +448,31 @@ export default function BrandingPage() {
             <h2 className="text-lg font-semibold mb-4">Salon Preview</h2>
             
             <div className="border rounded-lg overflow-hidden">
-              <div className="h-32 bg-gradient-to-r from-primary to-secondary flex items-center justify-center">
+              <div 
+                className="h-32 flex items-center justify-center" 
+                style={{ 
+                  background: `linear-gradient(to right, ${salonInfo.brandPrimaryColor}, ${salonInfo.brandSecondaryColor})` 
+                }}
+              >
                 <div className="bg-white p-3 rounded-full">
-                  <Image className="h-10 w-10 text-primary" />
+                  {salonInfo.logoUrl ? (
+                    <img 
+                      src={salonInfo.logoUrl} 
+                      alt="Logo" 
+                      className="h-10 w-10 object-cover rounded-full" 
+                    />
+                  ) : (
+                    <ImageIcon className="h-10 w-10" style={{ color: salonInfo.brandPrimaryColor }} />
+                  )}
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-semibold text-lg">{salonInfo.name}</h3>
-                <p className="text-sm text-gray-600 mb-3">{salonInfo.address}</p>
+                <h3 className="font-semibold text-lg">{salonInfo.name || 'Your Salon'}</h3>
+                <p className="text-sm text-gray-600 mb-3">{salonInfo.address || 'Your Address'}</p>
                 <Button 
                   className="w-full text-sm" 
                   size="sm"
-                  style={{ backgroundColor: salonInfo.primaryColor }}
+                  style={{ backgroundColor: salonInfo.brandPrimaryColor }}
                 >
                   Book Now
                 </Button>
@@ -371,10 +597,17 @@ export default function BrandingPage() {
       </div>
       
       <div className="mt-6 flex justify-end">
-        <Button variant="outline" className="mr-3">
+        <Button 
+          variant="outline" 
+          className="mr-3"
+          onClick={loadSalonData}
+        >
           Cancel
         </Button>
-        <Button onClick={saveChanges}>
+        <Button 
+          onClick={saveChanges}
+          loading={savingChanges}
+        >
           Save Changes
         </Button>
       </div>

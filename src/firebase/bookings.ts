@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   query,
   where,
@@ -27,6 +28,8 @@ export interface Booking {
 // Get all bookings for a salon
 export async function getSalonBookings(salonId: string): Promise<Booking[]> {
   try {
+    if (!salonId) return [];
+    
     const bookingsRef = collection(db, `salons/${salonId}/bookings`);
     const q = query(bookingsRef, orderBy('time', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -44,6 +47,8 @@ export async function getSalonBookings(salonId: string): Promise<Booking[]> {
 // Get bookings for a specific date
 export async function getBookingsByDate(salonId: string, date: Date): Promise<Booking[]> {
   try {
+    if (!salonId) return [];
+    
     // Create start and end dates (midnight to midnight)
     const startDate = new Date(date);
     startDate.setHours(0, 0, 0, 0);
@@ -74,6 +79,8 @@ export async function getBookingsByDate(salonId: string, date: Date): Promise<Bo
 // Get a specific booking
 export async function getBooking(salonId: string, bookingId: string): Promise<Booking | null> {
   try {
+    if (!salonId || !bookingId) return null;
+    
     const bookingDoc = await getDoc(doc(db, `salons/${salonId}/bookings`, bookingId));
     if (!bookingDoc.exists()) {
       return null;
@@ -91,27 +98,53 @@ export async function getBooking(salonId: string, bookingId: string): Promise<Bo
 // Create a new booking
 export async function createBooking(
   salonId: string, 
-  bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>
+  bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>,
+  options?: { status?: 'pending' | 'confirmed' | 'cancelled' }
 ): Promise<string> {
   try {
+    if (!salonId) throw new Error('Salon ID is required');
+    
+    console.log('Creating booking for salon:', salonId, 'with data:', bookingData);
+    
+    // Ensure the salon exists first
+    const salonRef = doc(db, 'salons', salonId);
+    const salonDoc = await getDoc(salonRef);
+    
+    if (!salonDoc.exists()) {
+      throw new Error(`Salon with ID ${salonId} does not exist`);
+    }
+    
+    // Create the booking document
     const bookingsRef = collection(db, `salons/${salonId}/bookings`);
-    const newBooking = await addDoc(bookingsRef, {
+    
+    const bookingToCreate = {
       ...bookingData,
-      status: 'pending',
+      status: options?.status || 'confirmed', // Default to confirmed unless specified
       createdAt: serverTimestamp()
-    });
+    };
     
-    // Log the notification in the notifications collection
-    await addDoc(collection(db, 'notifications/logs'), {
-      salonId,
-      bookingId: newBooking.id,
-      customerName: bookingData.name,
-      customerPhone: bookingData.phone,
-      messageType: 'booking_created',
-      timestamp: serverTimestamp()
-    });
+    // Use doc + setDoc instead of addDoc to avoid potential issues
+    const newBookingRef = doc(bookingsRef);
+    await setDoc(newBookingRef, bookingToCreate);
     
-    return newBooking.id;
+    // Log the notification
+    try {
+      const notificationData = {
+        salonId,
+        bookingId: newBookingRef.id,
+        customerName: bookingData.name,
+        customerPhone: bookingData.phone,
+        messageType: 'booking_created',
+        timestamp: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, 'notifications', 'logs'), notificationData);
+    } catch (notificationError) {
+      console.error('Error creating notification log:', notificationError);
+      // Continue even if notification fails
+    }
+    
+    return newBookingRef.id;
   } catch (error) {
     console.error('Error creating booking:', error);
     throw error;
@@ -125,6 +158,8 @@ export async function updateBookingStatus(
   status: 'pending' | 'confirmed' | 'cancelled'
 ): Promise<void> {
   try {
+    if (!salonId || !bookingId) throw new Error('Salon ID and Booking ID are required');
+    
     const bookingRef = doc(db, `salons/${salonId}/bookings`, bookingId);
     
     // Get the booking to include in notification
@@ -141,14 +176,19 @@ export async function updateBookingStatus(
     });
     
     // Log the notification in the notifications collection
-    await addDoc(collection(db, 'notifications/logs'), {
-      salonId,
-      bookingId,
-      customerName: bookingData.name,
-      customerPhone: bookingData.phone,
-      messageType: `booking_${status}`,
-      timestamp: serverTimestamp()
-    });
+    try {
+      await addDoc(collection(db, 'notifications/logs'), {
+        salonId,
+        bookingId,
+        customerName: bookingData.name,
+        customerPhone: bookingData.phone,
+        messageType: `booking_${status}`,
+        timestamp: serverTimestamp()
+      });
+    } catch (notificationError) {
+      console.error('Error creating notification log:', notificationError);
+      // Continue even if notification fails
+    }
   } catch (error) {
     console.error('Error updating booking status:', error);
     throw error;

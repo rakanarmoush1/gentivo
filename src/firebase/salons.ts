@@ -22,21 +22,33 @@ export interface Salon {
   brandPrimaryColor: string;
   brandSecondaryColor: string;
   logoUrl: string;
+  address?: string;
+  phone?: string;
   defaultServicesCreated: boolean;
   createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  businessHours?: Record<string, { open: string; close: string; isOpen: boolean }>;
 }
 
 // Get a salon by ID
 export async function getSalon(salonId: string): Promise<Salon | null> {
   try {
+    if (!salonId) return null;
+    
+    console.log('Getting salon with ID:', salonId);
     const salonDoc = await getDoc(doc(db, 'salons', salonId));
     if (!salonDoc.exists()) {
+      console.log('Salon not found');
       return null;
     }
-    return { 
+    
+    const salonData = { 
       id: salonDoc.id, 
       ...salonDoc.data() 
     } as Salon;
+    
+    console.log('Salon data:', salonData);
+    return salonData;
   } catch (error) {
     console.error('Error getting salon:', error);
     throw error;
@@ -46,10 +58,12 @@ export async function getSalon(salonId: string): Promise<Salon | null> {
 // Create a new salon
 export async function createSalon(userId: string, salonData: Partial<Salon>): Promise<string> {
   try {
+    if (!userId) throw new Error('User ID is required to create a salon');
+    
     // Create a reference to a new document with auto-generated ID
     const salonRef = doc(collection(db, 'salons'));
     
-    await setDoc(salonRef, {
+    const newSalon = {
       name: salonData.name || 'New Salon',
       createdBy: userId,
       brandPrimaryColor: salonData.brandPrimaryColor || '#4f46e5',
@@ -57,7 +71,10 @@ export async function createSalon(userId: string, salonData: Partial<Salon>): Pr
       logoUrl: salonData.logoUrl || '',
       defaultServicesCreated: false,
       createdAt: serverTimestamp()
-    });
+    };
+    
+    console.log('Creating salon:', newSalon);
+    await setDoc(salonRef, newSalon);
     
     return salonRef.id;
   } catch (error) {
@@ -69,11 +86,28 @@ export async function createSalon(userId: string, salonData: Partial<Salon>): Pr
 // Update salon data
 export async function updateSalon(salonId: string, data: Partial<Salon>): Promise<void> {
   try {
+    if (!salonId) throw new Error('Salon ID is required');
+    
+    // Remove id from the data to prevent updating it
+    const { id, createdAt, ...updateData } = data as any;
+    
+    console.log('Updating salon:', salonId, 'with data:', updateData);
+    
     const salonRef = doc(db, 'salons', salonId);
+    
+    // Check if salon exists
+    const salonDoc = await getDoc(salonRef);
+    if (!salonDoc.exists()) {
+      throw new Error(`Salon with ID ${salonId} does not exist`);
+    }
+    
+    // Update the salon with the provided data and add updatedAt timestamp
     await updateDoc(salonRef, {
-      ...data,
+      ...updateData,
       updatedAt: serverTimestamp()
     });
+    
+    console.log('Salon updated successfully');
   } catch (error) {
     console.error('Error updating salon:', error);
     throw error;
@@ -83,13 +117,19 @@ export async function updateSalon(salonId: string, data: Partial<Salon>): Promis
 // Get salons created by a user
 export async function getUserSalons(userId: string): Promise<Salon[]> {
   try {
+    if (!userId) return [];
+    
+    console.log('Getting salons for user:', userId);
     const q = query(collection(db, 'salons'), where('createdBy', '==', userId));
     const querySnapshot = await getDocs(q);
     
-    return querySnapshot.docs.map(doc => ({
+    const salons = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as Salon[];
+    
+    console.log('Found salons:', salons.length);
+    return salons;
   } catch (error) {
     console.error('Error getting user salons:', error);
     throw error;

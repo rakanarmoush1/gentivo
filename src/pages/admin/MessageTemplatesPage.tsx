@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getMessageTemplates, updateMessageTemplate, MessageTemplate } from '../../firebase';
 import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
 
-export default function MessageTemplatesPage() {
+interface MessageTemplatesPageProps {
+  salonId: string;
+}
+
+export default function MessageTemplatesPage({ salonId }: MessageTemplatesPageProps) {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -13,18 +16,30 @@ export default function MessageTemplatesPage() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    if (salonId) {
+      loadTemplates();
+    }
+  }, [salonId]);
 
   async function loadTemplates() {
     try {
+      if (!salonId) {
+        setError('No salon selected');
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
-      const data = await getMessageTemplates();
+      setError('');
+      
+      const data = await getMessageTemplates(salonId);
       setTemplates(data);
       
       // Select the first template by default if there is one
       if (data.length > 0 && !selectedTemplate) {
         handleSelectTemplate(data[0]);
+      } else if (data.length === 0) {
+        setError('No message templates found for this salon');
       }
     } catch (error) {
       console.error('Error loading templates:', error);
@@ -42,14 +57,14 @@ export default function MessageTemplatesPage() {
   }
 
   async function handleSaveTemplate() {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate || !salonId) return;
     
     try {
       setSaving(true);
       setError('');
       setSuccess('');
       
-      await updateMessageTemplate(selectedTemplate.id, editedTemplate);
+      await updateMessageTemplate(salonId, selectedTemplate.id, editedTemplate);
       
       // Update the templates list
       setTemplates(templates.map(t => 
@@ -67,6 +82,16 @@ export default function MessageTemplatesPage() {
     }
   }
 
+  if (!salonId) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="bg-yellow-50 text-yellow-700 p-4 rounded">
+          Please select a salon to manage message templates
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-2xl font-bold mb-6">Message Templates</h1>
@@ -74,6 +99,10 @@ export default function MessageTemplatesPage() {
       {loading ? (
         <div className="flex justify-center items-center h-48">
           <p>Loading templates...</p>
+        </div>
+      ) : error && templates.length === 0 ? (
+        <div className="bg-red-50 text-red-600 p-4 rounded">
+          {error}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

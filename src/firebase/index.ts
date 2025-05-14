@@ -25,6 +25,16 @@ export {
   type Service
 } from './services';
 
+// Export employee-related functions
+export {
+  getSalonEmployees,
+  getEmployee,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+  type Employee
+} from './employees';
+
 // Export booking-related functions
 export {
   getSalonBookings,

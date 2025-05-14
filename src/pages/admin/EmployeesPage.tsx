@@ -1,8 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, X, Search, Check } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Modal from '../../components/common/Modal';
+import { 
+  getSalonEmployees, 
+  getSalonServices,
+  createEmployee, 
+  deleteEmployee,
+  Service as FirestoreService, 
+  Employee as FirestoreEmployee 
+} from '../../firebase';
 
 interface Employee {
   id: string;
@@ -10,7 +18,7 @@ interface Employee {
   email: string;
   phone: string;
   services: string[];
-  image: string;
+  image?: string;
 }
 
 interface Service {
@@ -18,29 +26,17 @@ interface Service {
   name: string;
 }
 
-export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      email: 'sarah@gentivo.ai',
-      phone: '+962 79 123 4567',
-      services: ['Classic Manicure', 'Gel Manicure'],
-      image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg'
-    }
-  ]);
-  
-  const [services] = useState<Service[]>([
-    { id: '1', name: 'Classic Manicure' },
-    { id: '2', name: 'Gel Manicure' },
-    { id: '3', name: 'Classic Pedicure' },
-    { id: '4', name: 'Gel Pedicure' },
-    { id: '5', name: 'Nail Art' },
-    { id: '6', name: 'Full Set Acrylic' }
-  ]);
-  
+interface EmployeesPageProps {
+  salonId: string;
+}
+
+export default function EmployeesPage({ salonId }: EmployeesPageProps) {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -49,6 +45,45 @@ export default function EmployeesPage() {
     services: [] as string[],
     image: ''
   });
+  
+  useEffect(() => {
+    if (salonId) {
+      loadData();
+    }
+  }, [salonId]);
+  
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Load employees
+      const employeeData = await getSalonEmployees(salonId);
+      
+      setEmployees(employeeData.map(employee => ({
+        id: employee.id,
+        name: employee.name,
+        email: employee.email,
+        phone: employee.phone,
+        services: employee.services,
+        image: employee.image
+      })));
+      
+      // Load services for the dropdown selection
+      const serviceData = await getSalonServices(salonId);
+      
+      setServices(serviceData.map(service => ({
+        id: service.id,
+        name: service.name
+      })));
+      
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setError('Failed to load employees or services');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -67,21 +102,52 @@ export default function EmployeesPage() {
     }));
   };
   
-  const addEmployee = () => {
-    const id = (employees.length + 1).toString();
-    setEmployees([...employees, { ...newEmployee, id }]);
-    setNewEmployee({ name: '', email: '', phone: '', services: [], image: '' });
-    setIsAddModalOpen(false);
+  const addEmployee = async () => {
+    try {
+      // Add to Firestore
+      const employeeId = await createEmployee(salonId, {
+        name: newEmployee.name,
+        email: newEmployee.email,
+        phone: newEmployee.phone,
+        services: newEmployee.services,
+        image: newEmployee.image || ''
+      });
+      
+      // Update local state
+      setEmployees([...employees, { ...newEmployee, id: employeeId }]);
+      setNewEmployee({ name: '', email: '', phone: '', services: [], image: '' });
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      alert('Failed to add employee');
+    }
   };
   
-  const deleteEmployee = (id: string) => {
-    setEmployees(employees.filter(employee => employee.id !== id));
+  const removeEmployee = async (id: string) => {
+    try {
+      // Remove from Firestore
+      await deleteEmployee(salonId, id);
+      
+      // Update local state
+      setEmployees(employees.filter(employee => employee.id !== id));
+    } catch (error) {
+      console.error('Error removing employee:', error);
+      alert('Failed to remove employee');
+    }
   };
   
   const filteredEmployees = employees.filter(employee =>
     employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  if (loading) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-gray-500">Loading employees...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -89,6 +155,12 @@ export default function EmployeesPage() {
         <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
         <p className="text-gray-600">Manage your salon's staff and their services</p>
       </div>
+      
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+          {error}
+        </div>
+      )}
       
       {/* Actions */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -114,14 +186,20 @@ export default function EmployeesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredEmployees.map(employee => (
           <div key={employee.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative h-48">
-              <img
-                src={employee.image}
-                alt={employee.name}
-                className="w-full h-full object-cover"
-              />
+            <div className="relative h-48 bg-gray-100 flex items-center justify-center">
+              {employee.image ? (
+                <img
+                  src={employee.image}
+                  alt={employee.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold">
+                  {employee.name.substring(0, 1).toUpperCase()}
+                </div>
+              )}
               <button
-                onClick={() => deleteEmployee(employee.id)}
+                onClick={() => removeEmployee(employee.id)}
                 className="absolute top-2 right-2 p-1 bg-white rounded-full text-gray-400 hover:text-red-500"
               >
                 <X className="h-5 w-5" />
@@ -191,12 +269,11 @@ export default function EmployeesPage() {
           />
           
           <Input
-            label="Profile Image URL"
+            label="Profile Image URL (Optional)"
             name="image"
             value={newEmployee.image}
             onChange={handleInputChange}
             placeholder="Enter image URL"
-            required
           />
           
           <div>
@@ -234,7 +311,7 @@ export default function EmployeesPage() {
             </Button>
             <Button
               onClick={addEmployee}
-              disabled={!newEmployee.name || !newEmployee.email || !newEmployee.phone || !newEmployee.image || newEmployee.services.length === 0}
+              disabled={!newEmployee.name || !newEmployee.email || !newEmployee.phone || newEmployee.services.length === 0}
             >
               Add Employee
             </Button>
