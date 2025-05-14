@@ -4,6 +4,7 @@ import { Scissors } from 'lucide-react';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import { useAuth } from '../contexts/AuthContext';
+import { FirebaseError } from 'firebase/app';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,7 +21,26 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/admin');
     } catch (error) {
-      setError('Invalid email or password');
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/invalid-credential':
+            setError('Invalid email or password');
+            break;
+          case 'auth/user-not-found':
+            setError('No user found with this email');
+            break;
+          case 'auth/wrong-password':
+            setError('Invalid password');
+            break;
+          case 'auth/too-many-requests':
+            setError('Too many failed login attempts. Please try again later');
+            break;
+          default:
+            setError('Failed to log in. Please try again');
+        }
+      } else {
+        setError('An unexpected error occurred');
+      }
     }
   }
 

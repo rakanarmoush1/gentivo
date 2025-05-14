@@ -4,6 +4,7 @@ import Modal from '../common/Modal';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { FirebaseError } from 'firebase/app';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -26,7 +27,26 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       onClose();
       navigate('/admin');
     } catch (error) {
-      setError('Invalid email or password');
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/invalid-credential':
+            setError('Invalid email or password');
+            break;
+          case 'auth/user-not-found':
+            setError('No user found with this email');
+            break;
+          case 'auth/wrong-password':
+            setError('Invalid password');
+            break;
+          case 'auth/too-many-requests':
+            setError('Too many failed login attempts. Please try again later');
+            break;
+          default:
+            setError('Failed to log in. Please try again');
+        }
+      } else {
+        setError('An unexpected error occurred');
+      }
     }
   }
 

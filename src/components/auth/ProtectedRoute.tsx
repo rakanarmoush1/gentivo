@@ -1,21 +1,24 @@
+import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading } = useAuth();
+  const { currentUser, loading } = useAuth();
 
+  // Show loading state while auth state is being determined
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return <div>Loading...</div>;
   }
 
-  if (!isAuthenticated) {
+  // Redirect to login if not authenticated
+  if (!currentUser) {
     return <Navigate to="/login" />;
   }
 
+  // User is authenticated, render children
   return <>{children}</>;
 }

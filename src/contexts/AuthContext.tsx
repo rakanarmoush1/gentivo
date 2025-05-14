@@ -1,17 +1,24 @@
-import { createContext, useState, useContext, ReactNode } from 'react';
+import { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase/firebase';
 
 interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'salon' | 'customer';
+  uid: string;
+  email: string | null;
+  role?: 'admin' | 'salon';
 }
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -31,34 +38,64 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // This is a mock implementation. In a real app, you would integrate with Firebase Auth
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
+      if (user) {
+        // Get additional user data from Firestore if needed
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setCurrentUser({
+              uid: user.uid,
+              email: user.email,
+              role: userDoc.data().role || 'salon',
+            });
+          } else {
+            setCurrentUser({
+              uid: user.uid,
+              email: user.email,
+              role: 'salon', // Default role
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setCurrentUser({
+            uid: user.uid,
+            email: user.email,
+          });
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
   async function login(email: string, password: string) {
     setLoading(true);
     
     try {
-      // Mock login with predefined admin user
-      if (email === 'admin@gentivo.ai' && password === 'password') {
-        setCurrentUser({
-          id: '1',
-          email: 'admin@gentivo.ai',
-          name: 'Admin User',
-          role: 'admin'
-        });
-      } else {
-        throw new Error('Invalid credentials');
-      }
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // We don't need to set the user here as onAuthStateChanged will handle it
     } catch (error) {
-      console.error(error);
+      console.error('Login error:', error);
       throw error;
     } finally {
       setLoading(false);
     }
   }
 
-  function logout() {
-    setCurrentUser(null);
+  async function logout() {
+    try {
+      await signOut(auth);
+      // We don't need to set the user to null here as onAuthStateChanged will handle it
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   }
 
   const value = {
