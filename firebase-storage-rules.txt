@@ -1,0 +1,58 @@
+// Firebase Storage Security Rules
+// Copy these rules to your Firebase console storage rules section
+// https://console.firebase.google.com/project/YOUR_PROJECT_ID/storage/rules
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow anyone to read files (needed for public salon pages)
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+    
+    // Allow authenticated users to upload images to their salon folder
+    match /salons/{salonId}/{fileName} {
+      allow write: if request.auth != null 
+                    && request.resource.size < 5 * 1024 * 1024 // 5MB max
+                    && request.resource.contentType.matches('image/.*'); // Only images
+    }
+    
+    // Allow uploads to general uploads folder
+    match /uploads/{fileName} {
+      allow write: if request.auth != null
+                    && request.resource.size < 5 * 1024 * 1024 // 5MB max
+                    && request.resource.contentType.matches('image/.*'); // Only images
+    }
+    
+    // Allow uploads to test-uploads folder
+    match /test-uploads/{fileName} {
+      allow write: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024; // 10MB max for testing
+    }
+    
+    // Allow diagnostic uploads for troubleshooting
+    match /diagnostics/{fileName} {
+      allow write: if request.auth != null;
+    }
+    
+    // Allow test files for connection testing
+    match /test/{fileName} {
+      allow write: if request.auth != null;
+    }
+  }
+}
+
+// INSTRUCTIONS:
+// 1. Go to your Firebase Console: https://console.firebase.google.com
+// 2. Select your project (gentivo-7cd8d)
+// 3. Go to "Storage" in the left sidebar
+// 4. Click on the "Rules" tab
+// 5. Replace the current rules with the ones above
+// 6. Click "Publish"
+
+// Note: Make sure you've initialized your Firebase Storage bucket.
+// If you haven't created a Storage bucket yet, you'll need to:
+// 1. Go to Storage in the Firebase console
+// 2. Click "Get Started"
+// 3. Follow the setup process (choose a location close to your users)
+// 4. After creation, apply these rules 

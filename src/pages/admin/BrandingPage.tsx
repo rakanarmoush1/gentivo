@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Plus, Minus, Palette, Image as ImageIcon, Check, Link as LinkIcon } from 'lucide-react';
+import { Upload, Plus, Minus, Palette, Image as ImageIcon, Check, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import ImageUploader from '../../components/common/ImageUploader';
+import LoadingStatus from '../../components/common/LoadingStatus';
+import StorageDebugger from '../../components/admin/StorageDebugger';
+import FirebaseStorageStatus from '../../components/admin/FirebaseStorageStatus';
 import { getSalon, updateSalon, Service as FirestoreService, getSalonServices, createService, deleteService, updateService, updateSalonMapping, slugifySalonName } from '../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../firebase/firebase';
+import { checkFirestoreConnection, checkStorageConnection } from '../../firebase/debug';
+import { diagnoseFirebaseStorage } from '../../utils/firebaseDiagnostic';
+import { testFirebaseStorage } from '../../utils/firebaseStorageTest';
+import SimpleImageUploader from '../../components/simple/SimpleImageUploader';
 
 interface Service {
   id: string;
@@ -33,7 +39,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   const [error, setError] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showLinkCopied, setShowLinkCopied] = useState(false);
-  const logoInputRef = useRef<HTMLInputElement>(null);
   
   const [businessHours, setBusinessHours] = useState({
     monday: { open: '09:00', close: '18:00', isOpen: true },
@@ -53,6 +58,9 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   
   const [bookingUrl, setBookingUrl] = useState('');
   
+  // Add a new state for tracking loading phase
+  const [loadingPhase, setLoadingPhase] = useState<string>('initializing');
+  
   useEffect(() => {
     if (salonId) {
       loadSalonData();
@@ -63,14 +71,50 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     try {
       setLoading(true);
       setError('');
+      setLoadingPhase('initializing');
       
-      // Get salon info
-      const salon = await getSalon(salonId);
-      if (!salon) {
-        setError('Salon not found');
+      console.log('BrandingPage: Starting to load salon data for ID:', salonId);
+      
+      // Check Firestore connection first (this is critical)
+      setLoadingPhase('checking database connection');
+      console.log('BrandingPage: Checking Firestore connection...');
+      const firestoreConnected = await checkFirestoreConnection(5000);
+      if (!firestoreConnected) {
+        setError('Unable to connect to database. Please check your internet connection and refresh the page.');
+        setLoading(false);
         return;
       }
       
+      console.log('BrandingPage: Firestore connection successful');
+      
+      // Check if salonId is valid
+      if (!salonId) {
+        setError('Invalid salon ID');
+        setLoading(false);
+        return;
+      }
+      
+      // Get salon info
+      setLoadingPhase('loading salon information');
+      console.log('BrandingPage: Fetching salon data...');
+      let salon;
+      try {
+        salon = await getSalon(salonId);
+        if (!salon) {
+          console.error('BrandingPage: Salon not found for ID:', salonId);
+          setError('Salon not found');
+          setLoading(false);
+          return;
+        }
+        console.log('BrandingPage: Salon data received:', salon);
+      } catch (salonError) {
+        console.error('BrandingPage: Error fetching salon:', salonError);
+        setError('Error loading salon information. Please try again.');
+        setLoading(false);
+        return;
+      }
+      
+      // Update UI with salon data
       setSalonInfo({
         name: salon.name || '',
         logoUrl: salon.logoUrl || '',
@@ -81,25 +125,52 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       });
       
       // Generate a proper URL-friendly name for the salon domain
+      setLoadingPhase('preparing salon information');
+      console.log('BrandingPage: Generating URL-friendly name...');
       const slugifiedName = slugifySalonName(salon.name);
       setBookingUrl(`${slugifiedName}.gentivo.ai`);
       
-      // Update the salon name mapping in Firestore
-      await updateSalonMapping(salon.name, salonId);
+      // Update the salon name mapping in Firestore (don't block on this)
+      console.log('BrandingPage: Updating salon name mapping...');
+      updateSalonMapping(salon.name, salonId).catch(err => {
+        console.error('BrandingPage: Error updating salon mapping:', err);
+      });
       
       // Get salon services
-      const salonServices = await getSalonServices(salonId);
-      setServices(salonServices.map(service => ({
-        id: service.id,
-        name: service.name,
-        duration: service.duration,
-        price: service.price
-      })));
+      setLoadingPhase('loading salon services');
+      console.log('BrandingPage: Fetching salon services...');
+      try {
+        const salonServices = await getSalonServices(salonId);
+        console.log('BrandingPage: Salon services received:', salonServices.length);
+        
+        setServices(salonServices.map(service => ({
+          id: service.id,
+          name: service.name,
+          duration: service.duration,
+          price: service.price
+        })));
+      } catch (servicesError) {
+        console.error('BrandingPage: Error fetching salon services:', servicesError);
+        setError('Error loading salon services. Other salon data is available.');
+      }
+      
+      // Check storage connection in the background (non-blocking)
+      setLoadingPhase('finalizing');
+      checkStorageConnection(3000).then(storageConnected => {
+        if (!storageConnected) {
+          console.warn('BrandingPage: Firebase Storage connection test failed. Image uploads may not work.');
+        } else {
+          console.log('BrandingPage: Firebase Storage connection test successful');
+        }
+      });
+      
+      console.log('BrandingPage: Salon data loading complete');
       
     } catch (error) {
-      console.error('Error loading salon data:', error);
-      setError('Failed to load salon data');
+      console.error('BrandingPage: Error loading salon data:', error);
+      setError('Failed to load salon data. Please refresh the page and try again.');
     } finally {
+      setLoadingPhase('complete');
       setLoading(false);
     }
   }
@@ -177,10 +248,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     });
   };
   
-  const handleLogoUpload = () => {
-    logoInputRef.current?.click();
-  };
-  
   // Reset state on component unmount to prevent state persistence
   useEffect(() => {
     return () => {
@@ -190,38 +257,51 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     };
   }, []);
   
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !salonId) return;
-    
+  const handleLogoUploadSuccess = async (downloadUrl: string) => {
     try {
       setError('');
-      setSavingChanges(true); // Show loading state
+      setSavingChanges(true);
       
-      // Create a reference with a unique name
-      const logoRef = ref(storage, `salons/${salonId}/logo_${Date.now()}`);
-      
-      // Upload file
-      const uploadResult = await uploadBytes(logoRef, file);
-      console.log('Upload successful:', uploadResult);
-      
-      // Get URL
-      const downloadUrl = await getDownloadURL(logoRef);
-      console.log('Download URL:', downloadUrl);
-      
-      // Update salon info
+      // Update the salon info in state
       setSalonInfo(prev => ({
         ...prev,
         logoUrl: downloadUrl
       }));
       
-      // Show success message briefly
+      // Update the Firestore document with the image URL
+      await updateSalon(salonId, { logoUrl: downloadUrl });
+      
+      // Show success message
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (error: any) {
+      console.error('Error saving logo URL:', error);
+      setError(`Failed to save logo URL: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setSavingChanges(false);
+    }
+  };
+  
+  const handleLogoUploadError = (errorMessage: string) => {
+    setError(`Upload error: ${errorMessage}`);
+  };
+  
+  const testStorage = async () => {
+    try {
+      setError('');
+      setSavingChanges(true);
       
+      const result = await testFirebaseStorage();
+      
+      if (result.success) {
+        setSavedSuccess(true);
+        setError(`Firebase Storage test successful! Test URL: ${result.url}`);
+        setTimeout(() => setSavedSuccess(false), 5000);
+      } else {
+        setError(`Firebase Storage test failed: ${result.error}`);
+      }
     } catch (error) {
-      console.error('Error uploading logo:', error);
-      setError(`Failed to upload logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setError(`Firebase Storage test error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSavingChanges(false);
     }
@@ -286,8 +366,25 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   
   if (loading) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-500">Loading salon information...</p>
+      <div className="py-12 max-w-3xl mx-auto">
+        <LoadingStatus 
+          message={`Loading salon branding (${loadingPhase})`} 
+          showDetails={true} 
+        />
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mt-6">
+            <p className="font-medium">Error loading data</p>
+            <p className="text-sm mt-1">{error}</p>
+            <Button 
+              onClick={() => loadSalonData()} 
+              className="mt-4"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -313,10 +410,28 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         </div>
       )}
       
+      {error && error.includes('storage') && <FirebaseStorageStatus />}
+      
       {savedSuccess && (
         <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6 flex items-center">
           <Check className="h-5 w-5 mr-2 text-green-600" />
           <span>Your changes have been saved successfully!</span>
+        </div>
+      )}
+      
+      {error && error.includes('upload') && (
+        <div className="mt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={testStorage} 
+            loading={savingChanges}
+          >
+            Test Storage Connection
+          </Button>
+          <p className="text-xs text-gray-500 mt-1">
+            This will attempt to upload a test file to Firebase Storage to verify connectivity.
+          </p>
         </div>
       )}
       
@@ -338,37 +453,12 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Salon Logo
               </label>
-              <div className="flex items-center">
-                {salonInfo.logoUrl && (
-                  <img 
-                    src={salonInfo.logoUrl} 
-                    alt="Salon Logo" 
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                  />
-                )}
-                <div className="flex-grow">
-                  <Input
-                    name="logoUrl"
-                    value={salonInfo.logoUrl}
-                    onChange={handleInfoChange}
-                    placeholder="Enter logo URL or upload"
-                  />
-                </div>
-                <button 
-                  className="ml-2 p-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                  onClick={handleLogoUpload}
-                  type="button"
-                >
-                  <Upload className="h-5 w-5 text-gray-500" />
-                </button>
-                <input 
-                  type="file" 
-                  ref={logoInputRef} 
-                  onChange={handleFileChange} 
-                  accept="image/*" 
-                  className="hidden" 
-                />
-              </div>
+              <SimpleImageUploader
+                folder={`salons/${salonId}`}
+                currentImageUrl={salonInfo.logoUrl}
+                buttonLabel="Upload Logo"
+                onImageUploaded={handleLogoUploadSuccess}
+              />
             </div>
             
             <Input
