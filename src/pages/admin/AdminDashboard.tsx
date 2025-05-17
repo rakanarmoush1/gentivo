@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, Scissors, ChevronRight, Menu, X, PenTool, Palette, LogOut } from 'lucide-react';
+import { Calendar, Users, Scissors, ChevronRight, Menu, X, PenTool, Palette, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import DeleteAccountButton from '../../components/admin/DeleteAccountButton';
+import ChangePasswordForm from '../../components/admin/ChangePasswordForm';
 import Logo from '../../components/common/Logo';
 import BookingsPage from './BookingsPage';
 import BrandingPage from './BrandingPage';
 import ServicesPage from './ServicesPage';
 import EmployeesPage from './EmployeesPage';
 import MessageTemplatesPage from './MessageTemplatesPage';
+import SettingsPage from './SettingsPage';
 import { getSalonId } from '../../utils/getSalonId';
 import { getUserSalons, updateSalon } from '../../firebase';
 
@@ -66,6 +68,7 @@ export default function AdminDashboard() {
     { name: 'Services', path: '/admin/services', icon: Scissors },
     { name: 'Staff', path: '/admin/employees', icon: Users },
     { name: 'Salon Branding', path: '/admin/branding', icon: Palette },
+    { name: 'Settings', path: '/admin/settings', icon: SettingsIcon },
   ];
 
   return (
@@ -116,9 +119,6 @@ export default function AdminDashboard() {
                   {item.name}
                 </NavLink>
               ))}
-              
-              {/* Add Delete Account Button */}
-              {selectedSalonId && <DeleteAccountButton salonId={selectedSalonId} />}
             </nav>
           </div>
           
@@ -178,9 +178,6 @@ export default function AdminDashboard() {
                   {item.name}
                 </NavLink>
               ))}
-              
-              {/* Add Delete Account Button */}
-              {selectedSalonId && <DeleteAccountButton salonId={selectedSalonId} />}
             </nav>
           </div>
           
@@ -225,6 +222,7 @@ export default function AdminDashboard() {
                   {location.pathname === '/admin/services' && <span className="font-medium text-gray-900">Services</span>}
                   {location.pathname === '/admin/employees' && <span className="font-medium text-gray-900">Staff</span>}
                   {location.pathname === '/admin/branding' && <span className="font-medium text-gray-900">Salon Branding</span>}
+                  {location.pathname === '/admin/settings' && <span className="font-medium text-gray-900">Settings</span>}
                 </div>
                 
                 {/* Salon booking preview button */}
@@ -247,6 +245,7 @@ export default function AdminDashboard() {
                 <Route path="/employees" element={<EmployeesPage salonId={selectedSalonId} />} />
                 <Route path="/messages" element={<MessageTemplatesPage salonId={selectedSalonId} />} />
                 <Route path="/branding" element={<BrandingPage salonId={selectedSalonId} />} />
+                <Route path="/settings" element={<SettingsPage salonId={selectedSalonId} />} />
               </Routes>
             </div>
           </div>

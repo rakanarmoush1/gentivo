@@ -6,6 +6,7 @@ import BookingPage from './pages/BookingPage';
 import BookingByNamePage from './pages/BookingByNamePage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import TestFileUpload from './TestFileUpload';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           />
           <Route path="/booking/:salonId" element={<BookingPage />} />
           <Route path="/booking/name/:salonName" element={<BookingByNamePage />} />
+          <Route path="/test-upload" element={<TestFileUpload />} />
         </Routes>
       </Router>
     </AuthProvider>

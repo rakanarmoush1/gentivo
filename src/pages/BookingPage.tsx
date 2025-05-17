@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Footer from '../components/common/Footer';
 import Modal from '../components/common/Modal';
+import SalonLogoHeader from '../components/booking/SalonLogoHeader';
 import { getSalon, Salon, getSalonServices, Service, createBooking } from '../firebase';
 import { Timestamp } from 'firebase/firestore';
 
@@ -444,6 +445,13 @@ export default function BookingPage() {
         title="Select a Service"
         closable={false}
       >
+        <SalonLogoHeader 
+          logoUrl={salon.logoUrl} 
+          salonName={salon.name}
+          primaryColor={colors.primaryColor}
+          primaryColorLight={colors.primaryColorLight}
+        />
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {services.map(service => (
             <div 
@@ -487,6 +495,13 @@ export default function BookingPage() {
         title="Select a Time"
         closable={false}
       >
+        <SalonLogoHeader 
+          logoUrl={salon.logoUrl} 
+          salonName={salon.name}
+          primaryColor={colors.primaryColor}
+          primaryColorLight={colors.primaryColorLight}
+        />
+        
         <p className="text-gray-600 mb-4">
           {selectedServiceDetails?.name} • {selectedServiceDetails?.duration} minutes • {selectedServiceDetails?.price} JOD
         </p>
@@ -507,7 +522,14 @@ export default function BookingPage() {
           ))}
         </div>
         
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <Button 
+            variant="outline"
+            onClick={prevStep}
+            style={{ borderColor: colors.primaryColor, color: colors.primaryColor }}
+          >
+            Back
+          </Button>
           <Button 
             onClick={() => {
               if (selectedTime) {
@@ -531,6 +553,13 @@ export default function BookingPage() {
         title="Your Information"
         closable={false}
       >
+        <SalonLogoHeader 
+          logoUrl={salon.logoUrl} 
+          salonName={salon.name}
+          primaryColor={colors.primaryColor}
+          primaryColorLight={colors.primaryColorLight}
+        />
+        
         <div className="space-y-4 mb-6">
           <Input
             label="Full Name"
@@ -576,6 +605,13 @@ export default function BookingPage() {
         title="Confirm Your Booking"
         closable={false}
       >
+        <SalonLogoHeader 
+          logoUrl={salon.logoUrl} 
+          salonName={salon.name}
+          primaryColor={colors.primaryColor}
+          primaryColorLight={colors.primaryColorLight}
+        />
+        
         <div className="space-y-4 mb-6">
           <div className="bg-gray-50 p-4 rounded-lg">
             <div className="mb-3">
@@ -629,6 +665,13 @@ export default function BookingPage() {
         title="Booking Confirmed!"
         closable={false}
       >
+        <SalonLogoHeader 
+          logoUrl={salon.logoUrl} 
+          salonName={salon.name}
+          primaryColor={colors.primaryColor}
+          primaryColorLight={colors.primaryColorLight}
+        />
+        
         <div className="text-center py-4 mb-6">
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="h-10 w-10 text-green-600" />
