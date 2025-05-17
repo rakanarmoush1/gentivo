@@ -37,7 +37,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       if (error instanceof FirebaseError) {
         switch (error.code) {
           case 'auth/invalid-credential':
-            setError('Invalid email or password');
+      setError('Invalid email or password');
             break;
           case 'auth/user-not-found':
             setError('No user found with this email');
@@ -60,7 +60,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Login" size="sm">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={() => {}} 
+      title="Login" 
+      size="sm"
+      closable={false}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">

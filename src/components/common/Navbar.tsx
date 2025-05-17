@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Scissors } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import Button from './Button';
 import LoginModal from '../auth/LoginModal';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from './Logo';
 
 interface NavbarProps {
   transparent?: boolean;
@@ -37,7 +38,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <Scissors className={`h-8 w-8 ${transparent && !isScrolled ? 'text-primary-light' : 'text-primary'}`} />
+                <Logo width={32} height={32} />
                 <span className={`ml-2 text-xl font-bold ${textColor}`}>Gentivo</span>
               </Link>
             </div>

@@ -104,9 +104,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             clearInterval(checkUser);
             resolve();
           }, 3000);
-        } else {
+      } else {
           resolve();
-        }
+      }
       });
     } catch (error) {
       console.error('Login error:', error);

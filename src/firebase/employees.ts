@@ -20,7 +20,6 @@ export interface Employee {
   email: string;
   phone: string;
   services: string[];
-  image?: string;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
 }

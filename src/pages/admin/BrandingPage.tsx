@@ -141,7 +141,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         
         // Update local state
         setServices([...services, { ...newService, id: serviceId }]);
-        setNewService({ name: '', duration: 30, price: 0 });
+      setNewService({ name: '', duration: 30, price: 0 });
       } catch (error) {
         console.error('Error adding service:', error);
         alert('Failed to add service');
@@ -156,7 +156,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       await deleteService(salonId, id);
       
       // Update local state
-      setServices(services.filter(service => service.id !== id));
+    setServices(services.filter(service => service.id !== id));
     } catch (error) {
       console.error('Error removing service:', error);
       alert('Failed to remove service');
@@ -229,8 +229,8 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       await updateSalonMapping(salonInfo.name, salonId);
       
       // Show success message
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving changes:', error);
       setError('Failed to save changes');
@@ -407,9 +407,9 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
             
             <div className="space-y-4">
               <div className="relative">
-                <Input
-                  label="Custom Booking URL"
-                  value={bookingUrl}
+              <Input
+                label="Custom Booking URL"
+                value={bookingUrl}
                   disabled
                   helperText="This is your booking URL based on your salon ID"
                 />

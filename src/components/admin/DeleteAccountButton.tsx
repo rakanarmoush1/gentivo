@@ -98,13 +98,6 @@ export default function DeleteAccountButton({ salonId }: DeleteAccountButtonProp
             
             <div className="flex justify-end space-x-3">
               <Button
-                variant="outline"
-                onClick={handleCloseModal}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
                 variant="danger"
                 onClick={handleDeleteAccount}
                 disabled={confirmText !== 'DELETE' || isDeleting}

@@ -137,7 +137,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
         description: '', 
         assignedEmployees: [] 
       });
-      setIsAddModalOpen(false);
+    setIsAddModalOpen(false);
     } catch (error) {
       console.error('Error adding service:', error);
       alert('Failed to add service');
@@ -170,7 +170,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       await deleteService(salonId, id);
       
       // Update local state
-      setServices(services.filter(service => service.id !== id));
+    setServices(services.filter(service => service.id !== id));
     } catch (error) {
       console.error('Error removing service:', error);
       alert('Failed to remove service');
@@ -246,7 +246,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
                   <p className="text-sm text-gray-500 mt-1">{service.description}</p>
                   <div className="mt-2 flex items-center space-x-4">
                     <span className="text-sm text-gray-600">{service.duration} minutes</span>
-                    <span className="text-sm font-medium text-gray-900">${service.price}</span>
+                    <span className="text-sm font-medium text-gray-900">{service.price} JOD</span>
                   </div>
                   
                   {service.assignedEmployees && service.assignedEmployees.length > 0 && (
@@ -286,6 +286,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Add New Service"
+        closable={true}
       >
         <div className="space-y-4">
           <Input
@@ -308,7 +309,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
           />
           
           <Input
-            label="Price ($)"
+            label="Price (JOD)"
             name="price"
             type="number"
             value={newService.price}
@@ -380,6 +381,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
         isOpen={isSuggestedModalOpen}
         onClose={() => setIsSuggestedModalOpen(false)}
         title="Add from Suggested Services"
+        closable={true}
       >
         <div className="space-y-4">
           {suggestedServices.map((service, index) => (
@@ -392,7 +394,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
               <p className="text-sm text-gray-500 mt-1">{service.description}</p>
               <div className="mt-2 flex items-center space-x-4">
                 <span className="text-sm text-gray-600">{service.duration} minutes</span>
-                <span className="text-sm font-medium text-gray-900">${service.price}</span>
+                <span className="text-sm font-medium text-gray-900">{service.price} JOD</span>
               </div>
             </div>
           ))}

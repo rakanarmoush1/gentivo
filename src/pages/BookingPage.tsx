@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle, Clock, Calendar, User, Scissors } from 'lucide-react';
 import BookingNavbar from '../components/common/BookingNavbar';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Footer from '../components/common/Footer';
+import Modal from '../components/common/Modal';
 import { getSalon, Salon, getSalonServices, Service, createBooking } from '../firebase';
 import { Timestamp } from 'firebase/firestore';
 
@@ -18,6 +19,13 @@ export default function BookingPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Modal states
+  const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [timeModalOpen, setTimeModalOpen] = useState(false);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
   
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -50,6 +58,13 @@ export default function BookingPage() {
       setLoading(false);
     }
   }, [salonId]);
+  
+  // Open service modal when page loads
+  useEffect(() => {
+    if (!loading && !error && salon) {
+      setServiceModalOpen(true);
+    }
+  }, [loading, error, salon]);
   
   async function loadSalonData() {
     try {
@@ -102,16 +117,24 @@ export default function BookingPage() {
   const nextStep = () => {
     switch (currentStep) {
       case 'service':
+        setServiceModalOpen(false);
         setCurrentStep('time');
+        setTimeModalOpen(true);
         break;
       case 'time':
+        setTimeModalOpen(false);
         setCurrentStep('info');
+        setInfoModalOpen(true);
         break;
       case 'info':
+        setInfoModalOpen(false);
         setCurrentStep('confirm');
+        setConfirmModalOpen(true);
         break;
       case 'confirm':
+        setConfirmModalOpen(false);
         setCurrentStep('success');
+        setSuccessModalOpen(true);
         break;
       default:
         break;
@@ -121,13 +144,19 @@ export default function BookingPage() {
   const prevStep = () => {
     switch (currentStep) {
       case 'time':
+        setTimeModalOpen(false);
         setCurrentStep('service');
+        setServiceModalOpen(true);
         break;
       case 'info':
+        setInfoModalOpen(false);
         setCurrentStep('time');
+        setTimeModalOpen(true);
         break;
       case 'confirm':
+        setConfirmModalOpen(false);
         setCurrentStep('info');
+        setInfoModalOpen(true);
         break;
       default:
         break;
@@ -154,13 +183,13 @@ export default function BookingPage() {
         return;
       }
       
-      // Create the booking
+      // Create the booking with status 'pending' instead of default 'confirmed'
       await createBooking(salonId, {
         name: customerInfo.name,
         phone: customerInfo.phone,
         service: selectedServiceData.name,
         time: Timestamp.fromDate(today)
-      });
+      }, { status: 'pending' });
       
       // Proceed to success step
       nextStep();
@@ -241,7 +270,7 @@ export default function BookingPage() {
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <BookingNavbar salonName={salon.name} />
@@ -256,9 +285,9 @@ export default function BookingPage() {
                 style={{ backgroundColor: `${colors.primaryColorLight}` }}
               >
                 {salon.logoUrl ? (
-                  <img 
+              <img 
                     src={salon.logoUrl} 
-                    alt={salon.name} 
+                alt={salon.name} 
                     className="w-16 h-16 rounded-full object-cover"
                   />
                 ) : (
@@ -273,297 +302,364 @@ export default function BookingPage() {
               </div>
             </div>
             
-            {/* Progress indicator */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
-                <div className={`flex items-center ${currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
-                  <div 
-                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
-                    style={{ 
-                      borderColor: currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
-                      backgroundColor: currentStep === 'service' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
-                    }}
-                  >
-                    1
+            {/* Booking summary card */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Booking</h2>
+              
+              <div className="space-y-6">
+                {/* Service section */}
+                <div 
+                  className={`p-4 rounded-lg border cursor-pointer ${selectedService ? 'bg-primary/5 border-primary/30' : 'border-gray-200'}`}
+                  style={{ 
+                    backgroundColor: selectedService ? colors.primaryColorLight : undefined,
+                    borderColor: selectedService ? colors.primaryColor : undefined 
+                  }}
+                  onClick={() => setServiceModalOpen(true)}
+                >
+                  <div className="flex items-start">
+                    <div className="p-2 rounded-full bg-primary/10 mr-4" style={{ backgroundColor: colors.primaryColorLight }}>
+                      <Scissors className="h-5 w-5" style={{ color: colors.primaryColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-gray-500">Service</h3>
+                      {selectedService ? (
+                        <div>
+                          <p className="font-medium text-gray-900">{selectedServiceDetails?.name}</p>
+                          <p className="text-sm text-gray-600">{selectedServiceDetails?.price} JOD • {selectedServiceDetails?.duration} min</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm italic text-gray-400">Click to select a service</p>
+                      )}
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400 self-center" />
                   </div>
-                  <span className="ml-2 text-sm font-medium">Service</span>
                 </div>
                 
-                <div className="flex-grow mx-2 h-0.5 bg-gray-200"></div>
-                
-                <div className={`flex items-center ${currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
-                  <div 
-                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
-                    style={{ 
-                      borderColor: currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
-                      backgroundColor: currentStep === 'time' || currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
-                    }}
-                  >
-                    2
+                {/* Time section */}
+                <div 
+                  className={`p-4 rounded-lg border cursor-pointer ${selectedTime ? 'bg-primary/5 border-primary/30' : 'border-gray-200'}`}
+                  style={{ 
+                    backgroundColor: selectedTime ? colors.primaryColorLight : undefined,
+                    borderColor: selectedTime ? colors.primaryColor : undefined 
+                  }}
+                  onClick={() => {
+                    if (selectedService) {
+                      setTimeModalOpen(true);
+                    } else {
+                      alert('Please select a service first');
+                      setServiceModalOpen(true);
+                    }
+                  }}
+                >
+                  <div className="flex items-start">
+                    <div className="p-2 rounded-full bg-primary/10 mr-4" style={{ backgroundColor: colors.primaryColorLight }}>
+                      <Clock className="h-5 w-5" style={{ color: colors.primaryColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-gray-500">Time</h3>
+                      {selectedTime ? (
+                        <p className="font-medium text-gray-900">Today at {selectedTime}</p>
+                      ) : (
+                        <p className="text-sm italic text-gray-400">Click to select a time</p>
+                      )}
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400 self-center" />
                   </div>
-                  <span className="ml-2 text-sm font-medium">Time</span>
                 </div>
                 
-                <div className="flex-grow mx-2 h-0.5 bg-gray-200"></div>
-                
-                <div className={`flex items-center ${currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
-                  <div 
-                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
-                    style={{ 
-                      borderColor: currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
-                      backgroundColor: currentStep === 'info' || currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
-                    }}
-                  >
-                    3
+                {/* Customer info section */}
+                <div 
+                  className={`p-4 rounded-lg border cursor-pointer ${customerInfo.name && customerInfo.phone ? 'bg-primary/5 border-primary/30' : 'border-gray-200'}`}
+                  style={{ 
+                    backgroundColor: customerInfo.name && customerInfo.phone ? colors.primaryColorLight : undefined,
+                    borderColor: customerInfo.name && customerInfo.phone ? colors.primaryColor : undefined 
+                  }}
+                  onClick={() => {
+                    if (selectedService && selectedTime) {
+                      setInfoModalOpen(true);
+                    } else {
+                      alert('Please select a service and time first');
+                      if (!selectedService) {
+                        setServiceModalOpen(true);
+                      } else if (!selectedTime) {
+                        setTimeModalOpen(true);
+                      }
+                    }
+                  }}
+                >
+                  <div className="flex items-start">
+                    <div className="p-2 rounded-full bg-primary/10 mr-4" style={{ backgroundColor: colors.primaryColorLight }}>
+                      <User className="h-5 w-5" style={{ color: colors.primaryColor }} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-gray-500">Your Information</h3>
+                      {customerInfo.name && customerInfo.phone ? (
+                        <div>
+                          <p className="font-medium text-gray-900">{customerInfo.name}</p>
+                          <p className="text-sm text-gray-600">{customerInfo.phone}</p>
                   </div>
-                  <span className="ml-2 text-sm font-medium">Info</span>
+                      ) : (
+                        <p className="text-sm italic text-gray-400">Click to enter your details</p>
+                      )}
                 </div>
-                
-                <div className="flex-grow mx-2 h-0.5 bg-gray-200"></div>
-                
-                <div className={`flex items-center ${currentStep === 'confirm' || currentStep === 'success' ? 'text-primary' : 'text-gray-400'}`} style={{ color: currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined }}>
-                  <div 
-                    className={`rounded-full h-8 w-8 flex items-center justify-center border-2 ${currentStep === 'confirm' || currentStep === 'success' ? 'text-white' : 'border-gray-300'}`}
-                    style={{ 
-                      borderColor: currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined,
-                      backgroundColor: currentStep === 'confirm' || currentStep === 'success' ? colors.primaryColor : undefined
-                    }}
-                  >
-                    4
+                    <ChevronRight className="h-5 w-5 text-gray-400 self-center" />
                   </div>
-                  <span className="ml-2 text-sm font-medium">Confirm</span>
                 </div>
               </div>
-            </div>
-            
-            {/* Step content */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              {/* Service selection step */}
-              {currentStep === 'service' && (
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Select a Service</h2>
-                  {services.length === 0 ? (
-                    <div className="text-center p-6">
-                      <p className="text-gray-500 mb-4">No services available for this salon.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {services.map(service => (
-                        <div 
-                          key={service.id}
-                          className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${selectedService === service.id ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                          style={{ 
-                            borderColor: selectedService === service.id ? colors.primaryColor : undefined,
-                            backgroundColor: selectedService === service.id ? colors.primaryColorLight : undefined
-                          }}
-                          onClick={() => handleServiceSelect(service.id)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-medium text-gray-900">{service.name}</h3>
-                              <p className="text-sm text-gray-600">{service.duration} minutes</p>
-                            </div>
-                            <div className="flex items-center">
-                              <span className="font-semibold text-gray-900">${service.price}</span>
-                              <ChevronRight className="ml-2 h-5 w-5 text-gray-400" />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div className="mt-6">
-                    <Button 
-                      onClick={nextStep} 
-                      disabled={!selectedService}
-                      className="w-full"
-                      style={{ backgroundColor: colors.primaryColor }}
-                    >
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-              )}
               
-              {/* Time selection step */}
-              {currentStep === 'time' && (
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Select a Time</h2>
-                  <p className="text-gray-600 mb-4">
-                    {selectedServiceDetails?.name} • {selectedServiceDetails?.duration} minutes • ${selectedServiceDetails?.price}
-                  </p>
-                  
-                  <div className="grid grid-cols-3 gap-3">
-                    {timeSlots.map(time => (
-                      <div 
-                        key={time}
-                        className={`border rounded-lg py-3 px-4 text-center cursor-pointer transition-all duration-200 ${selectedTime === time ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                        style={{ 
-                          borderColor: selectedTime === time ? colors.primaryColor : undefined,
-                          backgroundColor: selectedTime === time ? colors.primaryColorLight : undefined
-                        }}
-                        onClick={() => handleTimeSelect(time)}
-                      >
-                        <span className="font-medium">{time}</span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-6 flex space-x-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={prevStep}
-                      className="flex-1"
-                    >
-                      Back
-                    </Button>
-                    <Button 
-                      onClick={nextStep} 
-                      disabled={!selectedTime}
-                      className="flex-1"
-                    >
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Customer info step */}
-              {currentStep === 'info' && (
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Information</h2>
-                  <div className="space-y-4">
-                    <Input
-                      label="Full Name"
-                      name="name"
-                      value={customerInfo.name}
-                      onChange={handleInputChange}
-                      placeholder="Enter your full name"
-                      required
-                    />
-                    
-                    <Input
-                      label="Phone Number"
-                      name="phone"
-                      type="tel"
-                      value={customerInfo.phone}
-                      onChange={handleInputChange}
-                      placeholder="Enter your phone number"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="mt-6 flex space-x-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={prevStep}
-                      className="flex-1"
-                    >
-                      Back
-                    </Button>
-                    <Button 
-                      onClick={nextStep} 
-                      disabled={!customerInfo.name || !customerInfo.phone}
-                      className="flex-1"
-                    >
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Confirmation step */}
-              {currentStep === 'confirm' && (
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Confirm Your Booking</h2>
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="mb-3">
-                        <h3 className="text-sm font-medium text-gray-500">Salon</h3>
-                        <p className="text-gray-900">{salon.name}</p>
-                      </div>
-                      
-                      <div className="mb-3">
-                        <h3 className="text-sm font-medium text-gray-500">Service</h3>
-                        <p className="text-gray-900">{selectedServiceDetails?.name}</p>
-                        <p className="text-sm text-gray-600">${selectedServiceDetails?.price} • {selectedServiceDetails?.duration} min</p>
-                      </div>
-                      
-                      <div className="mb-3">
-                        <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-                        <p className="text-gray-900">Today at {selectedTime}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Your Information</h3>
-                        <p className="text-gray-900">{customerInfo.name}</p>
-                        <p className="text-gray-600">{customerInfo.phone}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
-                      <p className="text-sm text-gray-700">
-                        By confirming this booking, you agree to our cancellation policy. 
-                        Please arrive 5 minutes before your appointment time.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 flex space-x-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={prevStep}
-                      className="flex-1"
-                    >
-                      Back
-                    </Button>
-                    <Button 
-                      onClick={confirmBooking}
-                      className="flex-1"
-                    >
-                      Confirm Booking
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Success step */}
-              {currentStep === 'success' && (
-                <div className="text-center py-4">
-                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                    <CheckCircle className="h-10 w-10 text-green-600" />
-                  </div>
-                  
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Booking Confirmed!</h2>
-                  <p className="text-gray-600 mb-6">
-                    Your appointment has been confirmed. We've sent a confirmation to your phone.
-                  </p>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
-                    <div className="mb-3">
-                      <h3 className="text-sm font-medium text-gray-500">Service</h3>
-                      <p className="text-gray-900">{selectedServiceDetails?.name}</p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-                      <p className="text-gray-900">Today at {selectedTime}</p>
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    onClick={() => navigate('/')}
-                    className="w-full"
-                  >
-                    Return to Home
-                  </Button>
-                </div>
-              )}
+              <div className="mt-8">
+                <Button 
+                  onClick={() => {
+                    if (selectedService && selectedTime && customerInfo.name && customerInfo.phone) {
+                      setConfirmModalOpen(true);
+                    } else {
+                      if (!selectedService) {
+                        alert('Please select a service first');
+                        setServiceModalOpen(true);
+                      } else if (!selectedTime) {
+                        alert('Please select a time first');
+                        setTimeModalOpen(true);
+                      } else {
+                        alert('Please enter your contact information');
+                        setInfoModalOpen(true);
+                      }
+                    }
+                  }}
+                  className="w-full"
+                  disabled={!selectedService || !selectedTime || !customerInfo.name || !customerInfo.phone}
+                  style={{ backgroundColor: colors.primaryColor }}
+                >
+                  Confirm Booking
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </main>
+      
+      {/* Service Selection Modal */}
+      <Modal 
+        isOpen={serviceModalOpen} 
+        onClose={() => {}}
+        title="Select a Service"
+        closable={false}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {services.map(service => (
+            <div 
+              key={service.id}
+              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                selectedService === service.id ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'
+              }`}
+              style={{ 
+                borderColor: selectedService === service.id ? colors.primaryColor : undefined,
+                backgroundColor: selectedService === service.id ? colors.primaryColorLight : undefined
+              }}
+              onClick={() => handleServiceSelect(service.id)}
+            >
+              <h3 className="font-medium">{service.name}</h3>
+              <p className="text-sm text-gray-500">{service.price} JOD • {service.duration} min</p>
+            </div>
+          ))}
+        </div>
+        
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => {
+              if (selectedService) {
+                nextStep();
+              } else {
+                alert('Please select a service to continue');
+              }
+            }}
+            disabled={!selectedService}
+            style={{ backgroundColor: colors.primaryColor }}
+          >
+            Continue
+          </Button>
+        </div>
+      </Modal>
+      
+      {/* Time Selection Modal */}
+      <Modal 
+        isOpen={timeModalOpen} 
+        onClose={() => {}}
+        title="Select a Time"
+        closable={false}
+      >
+        <p className="text-gray-600 mb-4">
+          {selectedServiceDetails?.name} • {selectedServiceDetails?.duration} minutes • {selectedServiceDetails?.price} JOD
+        </p>
+        
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {timeSlots.map(time => (
+            <div 
+              key={time}
+              className={`border rounded-lg py-3 px-4 text-center cursor-pointer transition-all duration-200 ${selectedTime === time ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+              style={{ 
+                borderColor: selectedTime === time ? colors.primaryColor : undefined,
+                backgroundColor: selectedTime === time ? colors.primaryColorLight : undefined
+              }}
+              onClick={() => handleTimeSelect(time)}
+            >
+              <span className="font-medium">{time}</span>
+            </div>
+          ))}
+        </div>
+        
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => {
+              if (selectedTime) {
+                nextStep();
+              } else {
+                alert('Please select a time to continue');
+              }
+            }}
+            disabled={!selectedTime}
+            style={{ backgroundColor: colors.primaryColor }}
+          >
+            Continue
+          </Button>
+        </div>
+      </Modal>
+      
+      {/* Customer Info Modal */}
+      <Modal 
+        isOpen={infoModalOpen} 
+        onClose={() => {}}
+        title="Your Information"
+        closable={false}
+      >
+        <div className="space-y-4 mb-6">
+          <Input
+            label="Full Name"
+            name="name"
+            value={customerInfo.name}
+            onChange={handleInputChange}
+            placeholder="Enter your full name"
+            required
+          />
+          
+          <Input
+            label="Phone Number"
+            name="phone"
+            type="tel"
+            value={customerInfo.phone}
+            onChange={handleInputChange}
+            placeholder="Enter your phone number"
+            required
+          />
+        </div>
+        
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => {
+              if (customerInfo.name && customerInfo.phone) {
+                nextStep();
+              } else {
+                alert('Please fill in all required fields');
+              }
+            }}
+            disabled={!customerInfo.name || !customerInfo.phone}
+            style={{ backgroundColor: colors.primaryColor }}
+          >
+            Continue
+          </Button>
+        </div>
+      </Modal>
+      
+      {/* Confirmation Modal */}
+      <Modal 
+        isOpen={confirmModalOpen} 
+        onClose={() => {}}
+        title="Confirm Your Booking"
+        closable={false}
+      >
+        <div className="space-y-4 mb-6">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-gray-500">Salon</h3>
+              <p className="text-gray-900">{salon.name}</p>
+            </div>
+            
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-gray-500">Service</h3>
+              <p className="text-gray-900">{selectedServiceDetails?.name}</p>
+              <p className="text-sm text-gray-600">{selectedServiceDetails?.price} JOD • {selectedServiceDetails?.duration} min</p>
+            </div>
+            
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
+              <p className="text-gray-900">Today at {selectedTime}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Your Information</h3>
+              <p className="text-gray-900">{customerInfo.name}</p>
+              <p className="text-gray-600">{customerInfo.phone}</p>
+            </div>
+          </div>
+          
+          <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg" style={{ 
+            backgroundColor: colors.primaryColorLight,
+            borderColor: colors.primaryColor 
+          }}>
+            <p className="text-sm text-gray-700">
+              By confirming this booking, you agree to our cancellation policy. 
+              Please arrive 5 minutes before your appointment time.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex justify-end">
+          <Button 
+            onClick={confirmBooking}
+            style={{ backgroundColor: colors.primaryColor }}
+          >
+            Confirm Booking
+          </Button>
+        </div>
+      </Modal>
+      
+      {/* Success Modal */}
+      <Modal 
+        isOpen={successModalOpen} 
+        onClose={() => {}}
+        title="Booking Confirmed!"
+        closable={false}
+      >
+        <div className="text-center py-4 mb-6">
+          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle className="h-10 w-10 text-green-600" />
+          </div>
+          
+          <p className="text-gray-600 mb-6">
+            Your appointment has been confirmed. We've sent a confirmation to your phone.
+          </p>
+          
+          <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-gray-500">Service</h3>
+              <p className="text-gray-900">{selectedServiceDetails?.name}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
+              <p className="text-gray-900">Today at {selectedTime}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-center">
+          <Button 
+            onClick={() => navigate('/')}
+            style={{ backgroundColor: colors.primaryColor }}
+          >
+            Return to Home
+          </Button>
+        </div>
+      </Modal>
       
       <Footer />
     </div>

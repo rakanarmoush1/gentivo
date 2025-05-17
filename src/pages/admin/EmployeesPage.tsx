@@ -18,7 +18,6 @@ interface Employee {
   email: string;
   phone: string;
   services: string[];
-  image?: string;
 }
 
 interface Service {
@@ -42,8 +41,7 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
     name: '',
     email: '',
     phone: '',
-    services: [] as string[],
-    image: ''
+    services: [] as string[]
   });
   
   useEffect(() => {
@@ -65,8 +63,7 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
         name: employee.name,
         email: employee.email,
         phone: employee.phone,
-        services: employee.services,
-        image: employee.image
+        services: employee.services
       })));
       
       // Load services for the dropdown selection
@@ -109,13 +106,12 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
         name: newEmployee.name,
         email: newEmployee.email,
         phone: newEmployee.phone,
-        services: newEmployee.services,
-        image: newEmployee.image || ''
+        services: newEmployee.services
       });
       
       // Update local state
       setEmployees([...employees, { ...newEmployee, id: employeeId }]);
-      setNewEmployee({ name: '', email: '', phone: '', services: [], image: '' });
+      setNewEmployee({ name: '', email: '', phone: '', services: [] });
       setIsAddModalOpen(false);
     } catch (error) {
       console.error('Error adding employee:', error);
@@ -129,7 +125,7 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
       await deleteEmployee(salonId, id);
       
       // Update local state
-      setEmployees(employees.filter(employee => employee.id !== id));
+    setEmployees(employees.filter(employee => employee.id !== id));
     } catch (error) {
       console.error('Error removing employee:', error);
       alert('Failed to remove employee');
@@ -150,54 +146,40 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-        <p className="text-gray-600">Manage your salon's staff and their services</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
+        <div className="flex w-full sm:w-auto gap-4">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="search"
+              placeholder="Search employees..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add
+          </Button>
+        </div>
       </div>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
           {error}
         </div>
       )}
       
-      {/* Actions */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="relative flex-grow">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary w-full"
-            placeholder="Search employees"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
-          <Plus className="h-5 w-5 mr-1" />
-          Add Employee
-        </Button>
-      </div>
-      
-      {/* Employees grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredEmployees.map(employee => (
           <div key={employee.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="relative h-48 bg-gray-100 flex items-center justify-center">
-              {employee.image ? (
-                <img
-                  src={employee.image}
-                  alt={employee.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold">
-                  {employee.name.substring(0, 1).toUpperCase()}
-                </div>
-              )}
+              <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold">
+                {employee.name.substring(0, 1).toUpperCase()}
+              </div>
               <button
                 onClick={() => removeEmployee(employee.id)}
                 className="absolute top-2 right-2 p-1 bg-white rounded-full text-gray-400 hover:text-red-500"
@@ -238,6 +220,7 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Add New Employee"
+        closable={true}
       >
         <div className="space-y-4">
           <Input
@@ -266,14 +249,6 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
             onChange={handleInputChange}
             placeholder="Enter phone number"
             required
-          />
-          
-          <Input
-            label="Profile Image URL (Optional)"
-            name="image"
-            value={newEmployee.image}
-            onChange={handleInputChange}
-            placeholder="Enter image URL"
           />
           
           <div>
@@ -306,9 +281,6 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
           </div>
           
           <div className="mt-6 flex justify-end space-x-3">
-            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
-            </Button>
             <Button
               onClick={addEmployee}
               disabled={!newEmployee.name || !newEmployee.email || !newEmployee.phone || newEmployee.services.length === 0}

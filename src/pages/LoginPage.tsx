@@ -31,7 +31,7 @@ export default function LoginPage() {
       if (error instanceof FirebaseError) {
         switch (error.code) {
           case 'auth/invalid-credential':
-            setError('Invalid email or password');
+      setError('Invalid email or password');
             break;
           case 'auth/user-not-found':
             setError('No user found with this email');

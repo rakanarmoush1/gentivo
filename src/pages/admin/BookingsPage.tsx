@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, Plus, User, Clock, Calendar, Tag, Check, X, Trash } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { getSalonBookings, Booking, updateBookingStatus, deleteBooking } from '../../firebase';
-import { format } from 'date-fns';
+import { getSalonServices, Service } from '../../firebase';
+import { format, parseISO, isValid, isSameDay } from 'date-fns';
 import AddBookingModal from '../../components/bookings/AddBookingModal';
-import BookingActions from '../../components/bookings/BookingActions';
 
 interface BookingsPageProps {
   salonId: string;
@@ -13,7 +13,10 @@ interface BookingsPageProps {
 export default function BookingsPage({ salonId }: BookingsPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [serviceFilter, setServiceFilter] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<string>('');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +29,7 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
   useEffect(() => {
     if (salonId) {
       loadBookings();
+      loadServices();
     }
   }, [salonId]);
   
@@ -48,13 +52,38 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
     }
   }
   
+  async function loadServices() {
+    try {
+      const servicesData = await getSalonServices(salonId);
+      setServices(servicesData);
+    } catch (error) {
+      console.error('Error loading services:', error);
+      // Don't set error, as this is a secondary feature
+    }
+  }
+  
   const filteredBookings = bookings.filter(booking => {
+    // Search filter
     const matchesSearch = booking.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          booking.service.toLowerCase().includes(searchQuery.toLowerCase());
+                          booking.phone.toLowerCase().includes(searchQuery.toLowerCase());
     
+    // Status filter
     const matchesStatus = statusFilter ? booking.status === statusFilter : true;
     
-    return matchesSearch && matchesStatus;
+    // Service filter
+    const matchesService = serviceFilter ? booking.service === serviceFilter : true;
+    
+    // Date filter
+    let matchesDate = true;
+    if (dateFilter) {
+      const bookingDate = booking.time.toDate();
+      const filterDate = parseISO(dateFilter);
+      if (isValid(filterDate)) {
+        matchesDate = isSameDay(bookingDate, filterDate);
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesService && matchesDate;
   });
   
   // Toggle selection of a single booking
@@ -139,12 +168,20 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
     }
   }
 
+  // Function to clear all filters
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setStatusFilter(null);
+    setServiceFilter(null);
+    setDateFilter('');
+  };
+
   return (
     <div>
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="text-gray-600">Manage and view all your salon bookings</p>
+        <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+        <p className="text-gray-600">Manage and view all your salon bookings</p>
         </div>
         
         <Button onClick={() => setIsAddModalOpen(true)}>
@@ -155,7 +192,8 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
       
       {/* Search and filters */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0">
+        <div className="flex flex-col space-y-4">
+          {/* Search bar */}
           <div className="relative flex-grow">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
@@ -163,16 +201,19 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
             <input
               type="text"
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary w-full"
-              placeholder="Search by customer or service"
+              placeholder="Search by customer name or phone"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           
-          <div className="flex space-x-3 md:ml-4">
+          {/* Filter options */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Status filter */}
             <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
-                className="pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary appearance-none bg-white"
+                className="pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary appearance-none bg-white w-full"
                 value={statusFilter || ''}
                 onChange={(e) => setStatusFilter(e.target.value || null)}
               >
@@ -181,11 +222,57 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
                 <option value="pending">Pending</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+              <div className="absolute right-3 bottom-3 pointer-events-none">
                 <Filter className="h-4 w-4 text-gray-500" />
               </div>
             </div>
+            
+            {/* Service filter */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
+              <select
+                className="pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary appearance-none bg-white w-full"
+                value={serviceFilter || ''}
+                onChange={(e) => setServiceFilter(e.target.value || null)}
+              >
+                <option value="">All services</option>
+                {services.map(service => (
+                  <option key={service.id} value={service.name}>
+                    {service.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 bottom-3 pointer-events-none">
+                <Tag className="h-4 w-4 text-gray-500" />
+              </div>
+            </div>
+            
+            {/* Date filter */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="date"
+                className="pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary appearance-none bg-white w-full"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+              />
+              <div className="absolute right-3 bottom-3 pointer-events-none">
+                <Calendar className="h-4 w-4 text-gray-500" />
+              </div>
+            </div>
           </div>
+          
+          {/* Clear filters button - only show if any filter is active */}
+          {(searchQuery || statusFilter || serviceFilter || dateFilter) && (
+            <div className="flex justify-end">
+              <button
+                onClick={clearAllFilters}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
       
@@ -243,10 +330,10 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
             <p className="text-gray-500">Loading bookings...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
                   <th scope="col" className="px-4 py-3 text-left">
                     <div className="flex items-center">
                       <input
@@ -257,25 +344,22 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
                       />
                     </div>
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Service
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date & Time
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredBookings.map((booking) => (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Customer
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Service
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date & Time
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredBookings.map((booking) => (
                   <tr key={booking.id} className={`hover:bg-gray-50 ${selectedBookings.includes(booking.id) ? 'bg-blue-50' : ''}`}>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <input
@@ -285,64 +369,57 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
                         onChange={() => toggleBookingSelection(booking.id)}
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="bg-primary/10 rounded-full p-2 mr-3">
-                          <User className="h-4 w-4 text-primary" />
-                        </div>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="bg-primary/10 rounded-full p-2 mr-3">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
                         <div>
                           <span className="text-sm font-medium text-gray-900 block">
                             {booking.name}
                           </span>
                           <span className="text-xs text-gray-500 block">
                             {booking.phone}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="bg-secondary/10 rounded-full p-2 mr-3">
-                          <Tag className="h-4 w-4 text-secondary" />
-                        </div>
-                        <span className="text-sm text-gray-900">
-                          {booking.service}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-start flex-col">
-                        <div className="flex items-center mb-1">
-                          <Calendar className="h-4 w-4 text-gray-400 mr-1" />
-                          <span className="text-sm text-gray-900">{formatBookingDate(booking.time)}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 text-gray-400 mr-1" />
-                          <span className="text-sm text-gray-900">{formatBookingTime(booking.time)}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <BookingActions 
-                        booking={booking} 
-                        salonId={salonId} 
-                        onStatusUpdated={loadBookings} 
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="bg-secondary/10 rounded-full p-2 mr-3">
+                        <Tag className="h-4 w-4 text-secondary" />
+                      </div>
+                      <span className="text-sm text-gray-900">
+                        {booking.service}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-start flex-col">
+                      <div className="flex items-center mb-1">
+                        <Calendar className="h-4 w-4 text-gray-400 mr-1" />
+                          <span className="text-sm text-gray-900">{formatBookingDate(booking.time)}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 text-gray-400 mr-1" />
+                          <span className="text-sm text-gray-900">{formatBookingTime(booking.time)}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                      booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         )}
         
         {!loading && filteredBookings.length === 0 && (
@@ -365,6 +442,7 @@ export default function BookingsPage({ salonId }: BookingsPageProps) {
         onClose={() => setIsAddModalOpen(false)}
         salonId={salonId}
         onBookingAdded={loadBookings}
+        closable={true}
       />
     </div>
   );

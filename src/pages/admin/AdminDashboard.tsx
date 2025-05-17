@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Scissors, Calendar, Users, Settings, ChevronRight, Menu, X, UserPlus, MessageSquare } from 'lucide-react';
+import { Calendar, Users, Scissors, ChevronRight, Menu, X, PenTool, Palette, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import DeleteAccountButton from '../../components/admin/DeleteAccountButton';
+import Logo from '../../components/common/Logo';
 import BookingsPage from './BookingsPage';
 import BrandingPage from './BrandingPage';
 import ServicesPage from './ServicesPage';
@@ -62,10 +63,9 @@ export default function AdminDashboard() {
   
   const navigation = [
     { name: 'Bookings', path: '/admin', icon: Calendar },
-    { name: 'Services', path: '/admin/services', icon: Settings },
-    { name: 'Staff', path: '/admin/employees', icon: UserPlus },
-    { name: 'Message Templates', path: '/admin/messages', icon: MessageSquare },
-    { name: 'Salon Branding', path: '/admin/branding', icon: Settings },
+    { name: 'Services', path: '/admin/services', icon: Scissors },
+    { name: 'Staff', path: '/admin/employees', icon: Users },
+    { name: 'Salon Branding', path: '/admin/branding', icon: Palette },
   ];
 
   return (
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
             {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
           <div className="ml-4 flex items-center">
-            <Scissors className="h-6 w-6 text-primary" />
+            <Logo width={24} height={24} />
             <span className="ml-2 text-lg font-bold">Gentivo</span>
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
           <div className="flex-1 overflow-y-auto pt-16 pb-4">
             <div className="flex-shrink-0 flex items-center px-6 mb-6">
               <Link to="/" className="flex items-center">
-                <Scissors className="h-8 w-8 text-primary" />
+                <Logo width={32} height={32} />
                 <span className="ml-2 text-xl font-bold">Gentivo</span>
               </Link>
             </div>
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
                 onClick={logout}
                 className="ml-auto p-1 rounded-full hover:bg-gray-100 text-gray-500"
               >
-                <X className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
           <div className="flex flex-col flex-grow h-0 border-r border-gray-200 pt-6 pb-4 bg-white overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-6 mb-6">
               <Link to="/" className="flex items-center">
-                <Scissors className="h-8 w-8 text-primary" />
+                <Logo width={32} height={32} />
                 <span className="ml-2 text-xl font-bold">Gentivo</span>
               </Link>
             </div>
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
                 onClick={logout}
                 className="ml-auto p-1 rounded-full hover:bg-gray-100 text-gray-500"
               >
-                <X className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -224,7 +224,6 @@ export default function AdminDashboard() {
                   {location.pathname === '/admin' && <span className="font-medium text-gray-900">Bookings</span>}
                   {location.pathname === '/admin/services' && <span className="font-medium text-gray-900">Services</span>}
                   {location.pathname === '/admin/employees' && <span className="font-medium text-gray-900">Staff</span>}
-                  {location.pathname === '/admin/messages' && <span className="font-medium text-gray-900">Message Templates</span>}
                   {location.pathname === '/admin/branding' && <span className="font-medium text-gray-900">Salon Branding</span>}
                 </div>
                 

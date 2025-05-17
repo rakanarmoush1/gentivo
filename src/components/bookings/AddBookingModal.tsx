@@ -10,13 +10,15 @@ interface AddBookingModalProps {
   onClose: () => void;
   salonId: string;
   onBookingAdded: () => void;
+  closable?: boolean;
 }
 
 export default function AddBookingModal({ 
   isOpen, 
   onClose, 
   salonId,
-  onBookingAdded
+  onBookingAdded,
+  closable = false
 }: AddBookingModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -118,7 +120,13 @@ export default function AddBookingModal({
   }
   
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Booking" size="md">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title="Add New Booking" 
+      size="md"
+      closable={closable}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
@@ -162,7 +170,7 @@ export default function AddBookingModal({
                 <option value="">Select a service</option>
                 {services.map(service => (
                   <option key={service.id} value={service.id}>
-                    {service.name} - ${service.price} ({service.duration} mins)
+                    {service.name} - {service.price} JOD ({service.duration} mins)
                   </option>
                 ))}
               </>
@@ -190,9 +198,6 @@ export default function AddBookingModal({
         </div>
         
         <div className="!mt-6 flex justify-end space-x-3">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
           <Button type="submit" loading={loading}>
             Add Booking
           </Button>
