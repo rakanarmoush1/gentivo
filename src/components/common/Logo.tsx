@@ -1,5 +1,4 @@
 import React from 'react';
-import { Scissors } from 'lucide-react';
 
 interface LogoProps {
   width?: number;
@@ -9,10 +8,12 @@ interface LogoProps {
 
 export default function Logo({ width = 40, height = 40, className = '' }: LogoProps) {
   return (
-    <Scissors
+    <img
+      src="/images/gentivo-logo.svg"
+      alt="Gentivo Logo"
       width={width}
       height={height}
-      className={`text-primary ${className}`}
+      className={className}
     />
   );
 } 
