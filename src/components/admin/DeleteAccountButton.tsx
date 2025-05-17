@@ -1,109 +1,125 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Trash, AlertTriangle } from 'lucide-react';
-import Button from '../common/Button';
-import { deleteUserAccount } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { deleteUser } from 'firebase/auth';
+import Button from '../common/Button';
 
 interface DeleteAccountButtonProps {
-  salonId: string;
+  onDelete?: () => void;
 }
 
-export default function DeleteAccountButton({ salonId }: DeleteAccountButtonProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+/**
+ * A button component that allows users to delete their account with confirmation
+ */
+export default function DeleteAccountButton({ onDelete }: DeleteAccountButtonProps) {
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
   
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
+  const { currentUser, signOut } = useAuth();
+  
+  const handleShowConfirmation = () => {
+    setShowConfirmation(true);
     setConfirmText('');
     setError('');
   };
   
   const handleCloseModal = () => {
-    setIsModalOpen(false);
+    setShowConfirmation(false);
     setConfirmText('');
+    setError('');
   };
   
   const handleDeleteAccount = async () => {
-    if (!currentUser || confirmText !== 'DELETE') {
+    if (!currentUser) {
+      setError('You must be logged in to delete your account');
+      return;
+    }
+    
+    if (confirmText !== 'DELETE') {
+      setError('Please type DELETE to confirm');
       return;
     }
     
     try {
-      setIsDeleting(true);
+      setLoading(true);
       setError('');
       
-      await deleteUserAccount(currentUser.uid, salonId);
+      // Delete the user account
+      await deleteUser(currentUser);
+      
+      // Call the onDelete callback if provided
+      if (onDelete) {
+        onDelete();
+      }
+      
+      // Sign out the user
+      await signOut();
       
       // Close the modal
-      setIsModalOpen(false);
-      
-      // Log out user and navigate to home page
-      await logout();
-      navigate('/');
-      
-    } catch (error) {
+      setShowConfirmation(false);
+    } catch (error: any) {
       console.error('Error deleting account:', error);
-      setError('Failed to delete account. Please try again.');
-      setIsDeleting(false);
+      setError(`Failed to delete account: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
     }
   };
   
   return (
     <>
-      <button
-        onClick={handleOpenModal}
-        className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-red-600 hover:bg-red-50 border border-red-200 mt-2"
+      <Button
+        variant="danger"
+        onClick={handleShowConfirmation}
+        className="w-full"
       >
-        <Trash className="mr-3 h-5 w-5 flex-shrink-0" />
         Delete Account
-      </button>
+      </Button>
       
-      {/* Delete Confirmation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
-            <div className="flex items-center text-red-600 mb-4">
-              <AlertTriangle className="h-6 w-6 mr-2" />
-              <h3 className="text-lg font-medium">Delete Account</h3>
-            </div>
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-red-600 mb-4">Delete Account</h3>
             
             <p className="text-gray-700 mb-4">
-              This will permanently delete your account, salon data, bookings, and all other associated information. This action <strong>cannot be undone</strong>.
+              This action <span className="font-bold">cannot be undone</span>. 
+              All your data will be permanently deleted.
             </p>
             
             {error && (
-              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md">
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 mb-4 text-sm">
                 {error}
               </div>
             )}
             
-            <div className="mb-6">
-              <label htmlFor="confirmDelete" className="block text-sm font-medium text-gray-700 mb-1">
-                Type <strong>DELETE</strong> to confirm:
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type DELETE to confirm
               </label>
               <input
                 type="text"
-                id="confirmDelete"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="Type DELETE to confirm"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="DELETE"
               />
             </div>
             
             <div className="flex justify-end space-x-3">
               <Button
+                variant="outline"
+                onClick={handleCloseModal}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
                 variant="danger"
                 onClick={handleDeleteAccount}
-                disabled={confirmText !== 'DELETE' || isDeleting}
-                className="flex items-center"
+                loading={loading}
+                disabled={loading || confirmText !== 'DELETE'}
               >
-                {isDeleting ? 'Deleting...' : 'Delete Account Permanently'}
+                Delete Account
               </Button>
             </div>
           </div>
