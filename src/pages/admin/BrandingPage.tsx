@@ -181,6 +181,15 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     logoInputRef.current?.click();
   };
   
+  // Reset state on component unmount to prevent state persistence
+  useEffect(() => {
+    return () => {
+      setSavingChanges(false);
+      setSavedSuccess(false);
+      setError('');
+    };
+  }, []);
+  
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !salonId) return;
@@ -193,16 +202,18 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       const logoRef = ref(storage, `salons/${salonId}/logo_${Date.now()}`);
       
       // Upload file
-      await uploadBytes(logoRef, file);
+      const uploadResult = await uploadBytes(logoRef, file);
+      console.log('Upload successful:', uploadResult);
       
       // Get URL
       const downloadUrl = await getDownloadURL(logoRef);
+      console.log('Download URL:', downloadUrl);
       
       // Update salon info
-      setSalonInfo({
-        ...salonInfo,
+      setSalonInfo(prev => ({
+        ...prev,
         logoUrl: downloadUrl
-      });
+      }));
       
       // Show success message briefly
       setSavedSuccess(true);
@@ -210,7 +221,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       
     } catch (error) {
       console.error('Error uploading logo:', error);
-      setError('Failed to upload logo. Please try again.');
+      setError(`Failed to upload logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSavingChanges(false);
     }
@@ -222,6 +233,17 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     try {
       setSavingChanges(true);
       setError('');
+      
+      console.log('Saving changes to salon:', salonId);
+      console.log('Data to save:', {
+        name: salonInfo.name,
+        logoUrl: salonInfo.logoUrl,
+        address: salonInfo.address,
+        phone: salonInfo.phone,
+        brandPrimaryColor: salonInfo.brandPrimaryColor,
+        brandSecondaryColor: salonInfo.brandSecondaryColor,
+        businessHours: businessHours
+      });
       
       // Update salon info in Firestore
       await updateSalon(salonId, {
@@ -237,12 +259,14 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       // Update the salon name mapping
       await updateSalonMapping(salonInfo.name, salonId);
       
+      console.log('Changes saved successfully!');
+      
       // Show success message
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving changes:', error);
-      setError('Failed to save changes');
+      setError(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSavingChanges(false);
     }
