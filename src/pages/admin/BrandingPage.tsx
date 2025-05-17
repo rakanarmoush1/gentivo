@@ -492,7 +492,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
                 <div className="flex-grow">
                   <div className="font-medium">{service.name}</div>
                   <div className="text-sm text-gray-600">
-                    {service.duration} min • ${service.price}
+                    {service.duration} min • {service.price} JOD
                   </div>
                 </div>
                 <button 
@@ -531,7 +531,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
                     type="number"
                     value={newService.price || ''}
                     onChange={handleNewServiceChange}
-                    placeholder="Price"
+                    placeholder="JOD"
                     className="border rounded px-2 py-1 text-sm w-full"
                   />
                 </div>
