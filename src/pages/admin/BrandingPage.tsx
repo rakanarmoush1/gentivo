@@ -3,8 +3,8 @@ import { Upload, Plus, Minus, Palette, Image as ImageIcon, Check, Link as LinkIc
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { getSalon, updateSalon, Service as FirestoreService, getSalonServices, createService, deleteService, updateService, updateSalonMapping, slugifySalonName } from '../../firebase';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firebaseApp } from '../../firebase/config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../firebase/firebase';
 
 interface Service {
   id: string;
@@ -186,7 +186,10 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     if (!file || !salonId) return;
     
     try {
-      const storage = getStorage(firebaseApp);
+      setError('');
+      setSavingChanges(true); // Show loading state
+      
+      // Create a reference with a unique name
       const logoRef = ref(storage, `salons/${salonId}/logo_${Date.now()}`);
       
       // Upload file
@@ -201,9 +204,15 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         logoUrl: downloadUrl
       });
       
+      // Show success message briefly
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+      
     } catch (error) {
       console.error('Error uploading logo:', error);
-      alert('Failed to upload logo');
+      setError('Failed to upload logo. Please try again.');
+    } finally {
+      setSavingChanges(false);
     }
   };
   

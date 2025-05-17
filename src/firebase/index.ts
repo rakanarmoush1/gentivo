@@ -1,6 +1,6 @@
 // Export Firebase app, auth, and firestore
 export { firebaseApp } from './config';
-export { auth, db } from './firebase';
+export { auth, db, storage } from './firebase';
 
 // Export initialization function
 export { initializeFirestore } from './initializeFirestore';
