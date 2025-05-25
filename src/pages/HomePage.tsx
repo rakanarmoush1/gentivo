@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarCheck, MessageSquare, Shield, Smartphone, Clock, Award, Phone } from 'lucide-react';
+import { CalendarCheck, Settings, Shield, Smartphone, Clock, Palette, Phone } from 'lucide-react';
 import Navbar from '../components/common/Navbar';
 import Button from '../components/common/Button';
 import Footer from '../components/common/Footer';
@@ -19,7 +19,7 @@ export default function HomePage() {
               </h1>
               <p className="mt-4 text-lg text-primary-light">
                 Streamline your salon operations with online bookings, 
-                automated reminders, and powerful management tools.
+                appointment management, and powerful admin tools.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center md:justify-start">
                 <Button 
@@ -73,11 +73,11 @@ export default function HomePage() {
             
             <div className="bg-white p-6 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
               <div className="p-2 bg-primary/10 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                <MessageSquare className="h-6 w-6 text-primary" />
+                <Settings className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">SMS Reminders</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Appointment Management</h3>
               <p className="text-gray-600">
-                Reduce no-shows with automated SMS reminders before appointments.
+                Efficiently manage all your appointments with our intuitive admin dashboard.
               </p>
             </div>
             
@@ -93,11 +93,11 @@ export default function HomePage() {
             
             <div className="bg-white p-6 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
               <div className="p-2 bg-primary/10 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                <Award className="h-6 w-6 text-primary" />
+                <Palette className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Customer Loyalty</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Custom Branding</h3>
               <p className="text-gray-600">
-                Build customer loyalty with a built-in points and rewards system.
+                Personalize your booking experience with your salon's unique branding and colors.
               </p>
             </div>
           </div>
@@ -125,17 +125,17 @@ export default function HomePage() {
             
             <div className="flex flex-col items-center text-center p-6">
               <Clock className="h-12 w-12 text-primary mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Automated Reminders</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Real-Time Availability</h3>
               <p className="text-gray-600">
-                Reduce no-shows by up to 70% with our smart reminder system.
+                Show real-time availability to prevent double bookings and optimize your schedule.
               </p>
             </div>
             
             <div className="flex flex-col items-center text-center p-6">
               <Shield className="h-12 w-12 text-primary mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Custom Branding</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure & Reliable</h3>
               <p className="text-gray-600">
-                Your salon's unique identity reflected in your booking experience.
+                Built with security in mind, ensuring your salon and customer data is always protected.
               </p>
             </div>
           </div>
@@ -152,11 +152,11 @@ export default function HomePage() {
             </p>
             <div className="mt-8">
               <a 
-                href="tel:0790082001"
+                href="tel:0798104962"
                 className="inline-flex items-center px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
               >
                 <Phone className="h-5 w-5 mr-2" />
-                Call Us: 079 008 2001
+                Call Us: 079 810 4962
               </a>
             </div>
           </div>
