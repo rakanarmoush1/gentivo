@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, Scissors, ChevronRight, Menu, X, PenTool, Palette, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { Calendar, Users, ChevronRight, Menu, X, PenTool, Palette, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import DeleteAccountButton from '../../components/admin/DeleteAccountButton';
@@ -74,7 +74,7 @@ export default function AdminDashboard() {
   
   const navigation = [
     { name: 'Bookings', path: '/admin', icon: Calendar },
-    { name: 'Services', path: '/admin/services', icon: Scissors },
+    { name: 'Services', path: '/admin/services', icon: SettingsIcon },
     { name: 'Staff', path: '/admin/employees', icon: Users },
     { name: 'Salon Branding', path: '/admin/branding', icon: Palette },
     { name: 'Settings', path: '/admin/settings', icon: SettingsIcon },

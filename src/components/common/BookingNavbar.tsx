@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, Scissors } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 interface BookingNavbarProps {
   salonName?: string;
@@ -22,8 +22,7 @@ export default function BookingNavbar({ salonName }: BookingNavbarProps) {
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <Scissors className="h-8 w-8 text-primary" />
-              <span className="ml-2 text-xl font-bold text-gray-800">
+              <span className="text-xl font-bold text-gray-800">
                 {salonName ? `${salonName}` : 'Gentivo'}
               </span>
             </Link>
