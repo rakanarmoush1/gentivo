@@ -52,15 +52,6 @@ export {
   type Booking
 } from './bookings';
 
-// Export inquiry-related functions
-export {
-  createInquiry,
-  getInquiries,
-  getSalonInquiries,
-  getInquiry,
-  type Inquiry
-} from './inquiries';
-
 // Export message template functions
 export {
   getMessageTemplates,

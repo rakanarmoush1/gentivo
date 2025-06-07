@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Button from './Button';
 import LoginModal from '../auth/LoginModal';
@@ -15,6 +15,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { isAuthenticated, currentUser, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   
   const [isScrolled, setIsScrolled] = useState(false);
   
@@ -31,6 +32,15 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   
   const textColor = transparent && !isScrolled ? 'text-white' : 'text-gray-800';
   
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/'); // Redirect to homepage
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+  
   return (
     <>
       <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${navbarBackground}`}>
@@ -46,11 +56,11 @@ export default function Navbar({ transparent = false }: NavbarProps) {
             <div className="hidden md:flex items-center space-x-4">
               {isAuthenticated ? (
                 <>
-                  <span className={`${textColor}`}>Welcome, {currentUser?.name}</span>
+                  <span className={`${textColor}`}>Welcome, {currentUser?.email}</span>
                   <Link to="/admin">
                     <Button variant="outline" size="sm">Dashboard</Button>
                   </Link>
-                  <Button variant="ghost" size="sm" onClick={logout}>Logout</Button>
+                  <Button variant="ghost" size="sm" onClick={handleLogout}>Logout</Button>
                 </>
               ) : (
                 <Button 
@@ -81,7 +91,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
               {isAuthenticated ? (
                 <>
                   <div className="px-3 py-2 text-sm font-medium">
-                    Welcome, {currentUser?.name}
+                    Welcome, {currentUser?.email}
                   </div>
                   <Link 
                     to="/admin" 
@@ -92,7 +102,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   </Link>
                   <button 
                     onClick={() => {
-                      logout();
+                      handleLogout();
                       setIsMenuOpen(false);
                     }}
                     className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, CheckCircle, Clock, Calendar, User, Scissors } from 'lucide-react';
+import { ChevronRight, CheckCircle, Clock, Calendar, User, Scissors, ChevronLeft } from 'lucide-react';
 import BookingNavbar from '../components/common/BookingNavbar';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
@@ -19,7 +19,7 @@ export default function BookingPage() {
   const [salon, setSalon] = useState<Salon | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -32,30 +32,78 @@ export default function BookingPage() {
   
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0); // For navigating weeks
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     phone: ''
   });
   
-  // Generate time slots from 9 AM to 6 PM every 30 minutes
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 9; hour < 18; hour++) {
-      for (let minute of [0, 30]) {
-        const formattedHour = hour.toString().padStart(2, '0');
-        const formattedMinute = minute.toString().padStart(2, '0');
-        slots.push(`${formattedHour}:${formattedMinute}`);
+  // Get available days based on business hours (next 28 days from current week offset)
+  const getAvailableDays = (): Date[] => {
+    if (!salon?.businessHours) return [];
+    
+    const days = [];
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + (currentWeekOffset * 7)); // Start from current week offset
+    
+    for (let i = 0; i < 28; i++) { // Show 4 weeks worth of days
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof typeof salon.businessHours;
+      
+      // Only include days when the salon is open
+      if (salon.businessHours[dayName]?.isOpen) {
+        days.push(date);
       }
     }
+    
+    return days;
+  };
+  
+  // Get days for the current week view (7 days)
+  const getCurrentWeekDays = (): Date[] => {
+    return getAvailableDays().slice(0, 7);
+  };
+  
+  // Generate time slots based on business hours for a specific day
+  const generateTimeSlots = (date: Date): string[] => {
+    if (!salon?.businessHours || !date) return [];
+    
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof typeof salon.businessHours;
+    const businessHour = salon.businessHours[dayName];
+    
+    if (!businessHour?.isOpen) return [];
+    
+    const slots = [];
+    const [openHour, openMinute] = businessHour.open.split(':').map(Number);
+    const [closeHour, closeMinute] = businessHour.close.split(':').map(Number);
+    
+    // Start from opening time
+    let currentHour = openHour;
+    let currentMinute = openMinute;
+    
+    while (currentHour < closeHour || (currentHour === closeHour && currentMinute < closeMinute)) {
+      const formattedHour = currentHour.toString().padStart(2, '0');
+      const formattedMinute = currentMinute.toString().padStart(2, '0');
+      slots.push(`${formattedHour}:${formattedMinute}`);
+      
+      // Add 30 minutes
+      currentMinute += 30;
+      if (currentMinute >= 60) {
+        currentMinute = 0;
+        currentHour += 1;
+      }
+    }
+    
     return slots;
   };
   
-  const timeSlots = generateTimeSlots();
-  
-  // Check if a time slot is available for the selected service
-  const isTimeSlotAvailable = (timeSlot: string): boolean => {
-    if (!selectedService) return false;
+  // Check if a time slot is available for the selected service on the selected date
+  const isTimeSlotAvailable = (timeSlot: string, date: Date): boolean => {
+    if (!selectedService || !date) return false;
     
     // Get the selected service details
     const serviceData = services.find(s => s.id === selectedService);
@@ -68,16 +116,15 @@ export default function BookingPage() {
     
     if (availableEmployees.length === 0) return false;
     
-    // Create a date object for the selected time slot today
-    const today = new Date();
+    // Create a date object for the selected time slot on the selected date
     const [hours, minutes] = timeSlot.split(':');
-    const slotTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+    const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), parseInt(hours), parseInt(minutes));
     const slotEndTime = new Date(slotTime.getTime() + serviceData.duration * 60000); // Add service duration
     
     // Check if any employee is available during this time slot
     return availableEmployees.some(employee => {
       // Check if this employee has any conflicting bookings
-      const employeeBookings = todayBookings.filter(booking => {
+      const employeeBookings = bookings.filter(booking => {
         // Find the service for this booking to check duration
         const bookingService = services.find(s => s.name === booking.service);
         if (!bookingService) return false;
@@ -88,6 +135,12 @@ export default function BookingPage() {
         // Get booking time and end time
         const bookingTime = booking.time.toDate();
         const bookingEndTime = new Date(bookingTime.getTime() + bookingService.duration * 60000);
+        
+        // Check if booking is on the same date
+        const bookingDate = new Date(bookingTime.getFullYear(), bookingTime.getMonth(), bookingTime.getDate());
+        const selectedDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        
+        if (bookingDate.getTime() !== selectedDateOnly.getTime()) return false;
         
         // Check for time overlap
         return (slotTime < bookingEndTime && slotEndTime > bookingTime);
@@ -107,6 +160,13 @@ export default function BookingPage() {
     }
   }, [salonId]);
   
+  // Load bookings for the selected date when date changes
+  useEffect(() => {
+    if (selectedDate && salonId) {
+      loadBookingsForDate(selectedDate);
+    }
+  }, [selectedDate, salonId]);
+  
   // Open service modal when page loads
   useEffect(() => {
     if (!loading && !error && salon) {
@@ -124,12 +184,11 @@ export default function BookingPage() {
         return;
       }
       
-      // Load salon details, services, employees, and today's bookings in parallel
-      const [salonData, servicesData, employeesData, bookingsData] = await Promise.all([
+      // Load salon details, services, and employees
+      const [salonData, servicesData, employeesData] = await Promise.all([
         getSalon(salonId),
         getSalonServices(salonId),
-        getSalonEmployees(salonId),
-        getBookingsByDate(salonId, new Date())
+        getSalonEmployees(salonId)
       ]);
       
       if (!salonData) {
@@ -141,13 +200,22 @@ export default function BookingPage() {
       setSalon(salonData);
       setServices(servicesData);
       setEmployees(employeesData);
-      setTodayBookings(bookingsData);
       
     } catch (error) {
       console.error('Error loading salon data:', error);
       setError('Failed to load salon data');
     } finally {
       setLoading(false);
+    }
+  }
+  
+  async function loadBookingsForDate(date: Date) {
+    try {
+      if (!salonId) return;
+      const bookingsData = await getBookingsByDate(salonId, date);
+      setBookings(bookingsData);
+    } catch (error) {
+      console.error('Error loading bookings for date:', error);
     }
   }
   
@@ -177,7 +245,7 @@ export default function BookingPage() {
           const slotEndTime = new Date(slotTime.getTime() + serviceData.duration * 60000);
           
           const isStillAvailable = availableEmployees.some(employee => {
-            const employeeBookings = todayBookings.filter(booking => {
+            const employeeBookings = bookings.filter(booking => {
               const bookingService = services.find(s => s.name === booking.service);
               if (!bookingService) return false;
               
@@ -202,7 +270,7 @@ export default function BookingPage() {
   
   const handleTimeSelect = (time: string) => {
     // Only allow selection if the time slot is available
-    if (isTimeSlotAvailable(time)) {
+    if (selectedDate && isTimeSlotAvailable(time, selectedDate!)) {
       setSelectedTime(time);
     }
   };
@@ -266,21 +334,21 @@ export default function BookingPage() {
   
   const confirmBooking = async () => {
     try {
-      if (!salonId || !selectedService || !selectedTime) {
+      if (!salonId || !selectedService || !selectedTime || !selectedDate) {
         console.error('Missing booking information');
         return;
       }
       
       // Double-check availability before booking
-      if (!isTimeSlotAvailable(selectedTime)) {
+      if (!isTimeSlotAvailable(selectedTime, selectedDate!)) {
         alert('Sorry, this time slot is no longer available. Please select a different time.');
         return;
       }
       
-      // Get today's date and combine with selected time
-      const today = new Date();
+      // Get the selected date and combine with selected time
       const [hours, minutes] = selectedTime.split(':');
-      today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      const bookingDateTime = new Date(selectedDate);
+      bookingDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       // Get the selected service name
       const selectedServiceData = services.find(s => s.id === selectedService);
@@ -295,7 +363,7 @@ export default function BookingPage() {
         name: customerInfo.name,
         phone: customerInfo.phone,
         service: selectedServiceData.name,
-        time: Timestamp.fromDate(today)
+        time: Timestamp.fromDate(bookingDateTime)
       }, { status: 'pending' });
       
       // Proceed to success step
@@ -444,10 +512,10 @@ export default function BookingPage() {
                 
                 {/* Time section */}
                 <div 
-                  className={`p-4 rounded-lg border cursor-pointer ${selectedTime ? 'bg-primary/5 border-primary/30' : 'border-gray-200'}`}
+                  className={`p-4 rounded-lg border cursor-pointer ${selectedTime && selectedDate ? 'bg-primary/5 border-primary/30' : 'border-gray-200'}`}
                   style={{ 
-                    backgroundColor: selectedTime ? colors.primaryColorLight : undefined,
-                    borderColor: selectedTime ? colors.primaryColor : undefined 
+                    backgroundColor: selectedTime && selectedDate ? colors.primaryColorLight : undefined,
+                    borderColor: selectedTime && selectedDate ? colors.primaryColor : undefined 
                   }}
                   onClick={() => {
                     if (selectedService) {
@@ -463,11 +531,20 @@ export default function BookingPage() {
                       <Clock className="h-5 w-5" style={{ color: colors.primaryColor }} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-sm font-medium text-gray-500">Time</h3>
-                      {selectedTime ? (
-                        <p className="font-medium text-gray-900">Today at {selectedTime}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
+                      {selectedTime && selectedDate ? (
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {selectedDate.toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </p>
+                          <p className="text-sm text-gray-600">at {selectedTime}</p>
+                        </div>
                       ) : (
-                        <p className="text-sm italic text-gray-400">Click to select a time</p>
+                        <p className="text-sm italic text-gray-400">Click to select date and time</p>
                       )}
                     </div>
                     <ChevronRight className="h-5 w-5 text-gray-400 self-center" />
@@ -482,13 +559,13 @@ export default function BookingPage() {
                     borderColor: customerInfo.name && customerInfo.phone ? colors.primaryColor : undefined 
                   }}
                   onClick={() => {
-                    if (selectedService && selectedTime) {
+                    if (selectedService && selectedDate && selectedTime) {
                       setInfoModalOpen(true);
                     } else {
-                      alert('Please select a service and time first');
+                      alert('Please select a service, date and time first');
                       if (!selectedService) {
                         setServiceModalOpen(true);
-                      } else if (!selectedTime) {
+                      } else if (!selectedDate || !selectedTime) {
                         setTimeModalOpen(true);
                       }
                     }
@@ -517,14 +594,14 @@ export default function BookingPage() {
               <div className="mt-8">
                 <Button 
                   onClick={() => {
-                    if (selectedService && selectedTime && customerInfo.name && customerInfo.phone) {
+                    if (selectedService && selectedDate && selectedTime && customerInfo.name && customerInfo.phone) {
                       setConfirmModalOpen(true);
                     } else {
                       if (!selectedService) {
                         alert('Please select a service first');
                         setServiceModalOpen(true);
-                      } else if (!selectedTime) {
-                        alert('Please select a time first');
+                      } else if (!selectedDate || !selectedTime) {
+                        alert('Please select date and time first');
                         setTimeModalOpen(true);
                       } else {
                         alert('Please enter your contact information');
@@ -533,7 +610,7 @@ export default function BookingPage() {
                     }
                   }}
                   className="w-full"
-                  disabled={!selectedService || !selectedTime || !customerInfo.name || !customerInfo.phone}
+                  disabled={!selectedService || !selectedDate || !selectedTime || !customerInfo.name || !customerInfo.phone}
                   style={{ backgroundColor: colors.primaryColor }}
                 >
                   Confirm Booking
@@ -598,7 +675,7 @@ export default function BookingPage() {
       <Modal 
         isOpen={timeModalOpen} 
         onClose={() => {}}
-        title="Select a Time"
+        title="Select Date & Time"
         closable={false}
       >
         <SalonLogoHeader 
@@ -608,44 +685,133 @@ export default function BookingPage() {
           primaryColorLight={colors.primaryColorLight}
         />
         
-        <p className="text-gray-600 mb-4">
+        <p className="text-gray-600 mb-6">
           {selectedServiceDetails?.name} • {selectedServiceDetails?.duration} minutes • {selectedServiceDetails?.price} JOD
         </p>
         
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {timeSlots.map(time => {
-            const isAvailable = isTimeSlotAvailable(time);
-            const isSelected = selectedTime === time;
-            
-            return (
-              <div 
-                key={time}
-                className={`border rounded-lg py-3 px-4 text-center transition-all duration-200 ${
-                  !isAvailable 
-                    ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50' 
-                    : isSelected 
-                    ? 'bg-primary/5 cursor-pointer' 
-                    : 'border-gray-200 hover:border-primary/50 cursor-pointer'
+        {/* Day Selection */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-700">Select a Date</h3>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentWeekOffset(Math.max(0, currentWeekOffset - 1))}
+                disabled={currentWeekOffset === 0}
+                className={`p-1 rounded-full ${
+                  currentWeekOffset === 0 
+                    ? 'text-gray-300 cursor-not-allowed' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                 }`}
-                style={{ 
-                  borderColor: isSelected && isAvailable ? colors.primaryColor : undefined,
-                  backgroundColor: isSelected && isAvailable ? colors.primaryColorLight : undefined
-                }}
-                onClick={() => isAvailable && handleTimeSelect(time)}
-                title={!isAvailable ? 'No staff available at this time' : undefined}
+                title="Previous week"
               >
-                <span className={`font-medium ${!isAvailable ? 'text-gray-400' : ''}`}>
-                  {time}
-                </span>
-                {!isAvailable && (
-                  <div className="text-xs text-gray-400 mt-1">
-                    Unavailable
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs text-gray-500 px-2">
+                {currentWeekOffset === 0 ? 'This Week' : `${currentWeekOffset + 1} Week${currentWeekOffset > 0 ? 's' : ''} Ahead`}
+              </span>
+              <button
+                onClick={() => setCurrentWeekOffset(currentWeekOffset + 1)}
+                disabled={currentWeekOffset >= 8} // Limit to 8 weeks in the future
+                className={`p-1 rounded-full ${
+                  currentWeekOffset >= 8 
+                    ? 'text-gray-300 cursor-not-allowed' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                }`}
+                title="Next week"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+            {getCurrentWeekDays().map(date => {
+              const isSelected = selectedDate?.toDateString() === date.toDateString();
+              const isToday = date.toDateString() === new Date().toDateString();
+              
+              return (
+                <div 
+                  key={date.toISOString()}
+                  className={`border rounded-lg p-3 text-center cursor-pointer transition-all duration-200 ${
+                    isSelected 
+                      ? 'bg-primary/5' 
+                      : 'border-gray-200 hover:border-primary/50'
+                  }`}
+                  style={{ 
+                    borderColor: isSelected ? colors.primaryColor : undefined,
+                    backgroundColor: isSelected ? colors.primaryColorLight : undefined
+                  }}
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setSelectedTime(null); // Clear selected time when date changes
+                  }}
+                >
+                  <div className="text-xs text-gray-500 mb-1">
+                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  <div className="font-medium text-gray-900">
+                    {isToday ? 'Today' : date.getDate()}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {date.toLocaleDateString('en-US', { month: 'short' })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
+        
+        {/* Time Selection */}
+        {selectedDate && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
+              Select a Time for {selectedDate.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              {generateTimeSlots(selectedDate).map(time => {
+                const isAvailable = isTimeSlotAvailable(time, selectedDate!);
+                const isSelected = selectedTime === time;
+                
+                return (
+                  <div 
+                    key={time}
+                    className={`border rounded-lg py-3 px-4 text-center transition-all duration-200 ${
+                      !isAvailable 
+                        ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50' 
+                        : isSelected 
+                        ? 'bg-primary/5 cursor-pointer' 
+                        : 'border-gray-200 hover:border-primary/50 cursor-pointer'
+                    }`}
+                    style={{ 
+                      borderColor: isSelected && isAvailable ? colors.primaryColor : undefined,
+                      backgroundColor: isSelected && isAvailable ? colors.primaryColorLight : undefined
+                    }}
+                    onClick={() => isAvailable && handleTimeSelect(time)}
+                    title={!isAvailable ? 'No staff available at this time' : undefined}
+                  >
+                    <span className={`font-medium ${!isAvailable ? 'text-gray-400' : ''}`}>
+                      {time}
+                    </span>
+                    {!isAvailable && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        Unavailable
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        {!selectedDate && (
+          <div className="text-center py-8 text-gray-500">
+            Please select a date first
+          </div>
+        )}
         
         <div className="flex justify-between">
           <Button 
@@ -657,13 +823,13 @@ export default function BookingPage() {
           </Button>
           <Button 
             onClick={() => {
-              if (selectedTime) {
+              if (selectedDate && selectedTime) {
                 nextStep();
               } else {
-                alert('Please select a time to continue');
+                alert('Please select both date and time to continue');
               }
             }}
-            disabled={!selectedTime}
+            disabled={!selectedDate || !selectedTime}
             style={{ backgroundColor: colors.primaryColor }}
           >
             Continue
@@ -752,7 +918,13 @@ export default function BookingPage() {
             
             <div className="mb-3">
               <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-              <p className="text-gray-900">Today at {selectedTime}</p>
+              <p className="text-gray-900">
+                {selectedDate?.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })} at {selectedTime}
+              </p>
             </div>
             
             <div>
@@ -814,7 +986,13 @@ export default function BookingPage() {
             
             <div>
               <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-              <p className="text-gray-900">Today at {selectedTime}</p>
+              <p className="text-gray-900">
+                {selectedDate?.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })} at {selectedTime}
+              </p>
             </div>
           </div>
         </div>

@@ -23,6 +23,15 @@ export default function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/'); // Redirect to homepage
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+  
   useEffect(() => {
     if (currentUser) {
       loadUserSalons();
@@ -139,7 +148,7 @@ export default function AdminDashboard() {
                 )}
               </div>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="ml-auto p-1 rounded-full hover:bg-gray-100 text-gray-500"
               >
                 <LogOut className="h-5 w-5" />
@@ -198,7 +207,7 @@ export default function AdminDashboard() {
                 )}
               </div>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="ml-auto p-1 rounded-full hover:bg-gray-100 text-gray-500"
               >
                 <LogOut className="h-5 w-5" />

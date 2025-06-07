@@ -62,10 +62,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   return (
     <Modal 
       isOpen={isOpen} 
-      onClose={() => {}} 
+      onClose={onClose} 
       title="Login" 
       size="sm"
-      closable={false}
+      closable={true}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -103,12 +103,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           >
             {loading ? 'Logging in...' : 'Login'}
           </Button>
-        </div>
-        
-        <div className="text-center text-sm text-gray-500">
-          <p>Demo credentials:</p>
-          <p>Email: admin@gentivo.ai</p>
-          <p>Password: password</p>
         </div>
       </form>
     </Modal>

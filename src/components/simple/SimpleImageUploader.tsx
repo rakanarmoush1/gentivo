@@ -25,16 +25,11 @@ export default function SimpleImageUploader({
     setError(null);
     
     try {
-      console.log('Uploading file to folder:', folder);
-      
-      // Use the centralized upload function
       const downloadUrl = await uploadImageToFirebase(file, folder);
-      
-      // Call the callback with the URL
       onImageUploaded(downloadUrl);
-    } catch (err) {
-      console.error('Upload failed:', err);
-      setError(err instanceof Error ? err.message : 'Upload failed');
+    } catch (error) {
+      console.error('Upload error:', error);
+      setError(error instanceof Error ? error.message : 'Upload failed');
     } finally {
       setIsUploading(false);
       

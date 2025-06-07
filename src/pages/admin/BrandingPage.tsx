@@ -1,23 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Plus, Minus, Palette, Image as ImageIcon, Check, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { Upload, Palette, Image as ImageIcon, Check, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import ImageUploader from '../../components/common/ImageUploader';
 import LoadingStatus from '../../components/common/LoadingStatus';
 import StorageDebugger from '../../components/admin/StorageDebugger';
 import FirebaseStorageStatus from '../../components/admin/FirebaseStorageStatus';
-import { getSalon, updateSalon, Service as FirestoreService, getSalonServices, createService, deleteService, updateService, updateSalonMapping, slugifySalonName } from '../../firebase';
+import { getSalon, updateSalon, updateSalonMapping, slugifySalonName } from '../../firebase';
 import { checkFirestoreConnection, checkStorageConnection } from '../../firebase/debug';
 import { diagnoseFirebaseStorage } from '../../utils/firebaseDiagnostic';
 import { testFirebaseStorage } from '../../utils/firebaseStorageTest';
 import SimpleImageUploader from '../../components/simple/SimpleImageUploader';
-
-interface Service {
-  id: string;
-  name: string;
-  duration: number;
-  price: number;
-}
 
 interface BrandingPageProps {
   salonId: string;
@@ -33,7 +26,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     brandSecondaryColor: '#f97316'
   });
   
-  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingChanges, setSavingChanges] = useState(false);
   const [error, setError] = useState('');
@@ -48,12 +40,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     friday: { open: '09:00', close: '18:00', isOpen: true },
     saturday: { open: '10:00', close: '16:00', isOpen: true },
     sunday: { open: '10:00', close: '16:00', isOpen: false }
-  });
-  
-  const [newService, setNewService] = useState<Omit<Service, 'id'>>({
-    name: '',
-    duration: 30,
-    price: 0
   });
   
   const [bookingUrl, setBookingUrl] = useState('');
@@ -73,19 +59,14 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       setError('');
       setLoadingPhase('initializing');
       
-      console.log('BrandingPage: Starting to load salon data for ID:', salonId);
-      
       // Check Firestore connection first (this is critical)
       setLoadingPhase('checking database connection');
-      console.log('BrandingPage: Checking Firestore connection...');
       const firestoreConnected = await checkFirestoreConnection(5000);
       if (!firestoreConnected) {
         setError('Unable to connect to database. Please check your internet connection and refresh the page.');
         setLoading(false);
         return;
       }
-      
-      console.log('BrandingPage: Firestore connection successful');
       
       // Check if salonId is valid
       if (!salonId) {
@@ -96,7 +77,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       
       // Get salon info
       setLoadingPhase('loading salon information');
-      console.log('BrandingPage: Fetching salon data...');
       let salon;
       try {
         salon = await getSalon(salonId);
@@ -106,7 +86,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
           setLoading(false);
           return;
         }
-        console.log('BrandingPage: Salon data received:', salon);
       } catch (salonError) {
         console.error('BrandingPage: Error fetching salon:', salonError);
         setError('Error loading salon information. Please try again.');
@@ -126,45 +105,21 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       
       // Generate a proper URL-friendly name for the salon domain
       setLoadingPhase('preparing salon information');
-      console.log('BrandingPage: Generating URL-friendly name...');
       const slugifiedName = slugifySalonName(salon.name);
       setBookingUrl(`${slugifiedName}.gentivo.ai`);
       
       // Update the salon name mapping in Firestore (don't block on this)
-      console.log('BrandingPage: Updating salon name mapping...');
       updateSalonMapping(salon.name, salonId).catch(err => {
         console.error('BrandingPage: Error updating salon mapping:', err);
       });
-      
-      // Get salon services
-      setLoadingPhase('loading salon services');
-      console.log('BrandingPage: Fetching salon services...');
-      try {
-        const salonServices = await getSalonServices(salonId);
-        console.log('BrandingPage: Salon services received:', salonServices.length);
-        
-        setServices(salonServices.map(service => ({
-          id: service.id,
-          name: service.name,
-          duration: service.duration,
-          price: service.price
-        })));
-      } catch (servicesError) {
-        console.error('BrandingPage: Error fetching salon services:', servicesError);
-        setError('Error loading salon services. Other salon data is available.');
-      }
       
       // Check storage connection in the background (non-blocking)
       setLoadingPhase('finalizing');
       checkStorageConnection(3000).then(storageConnected => {
         if (!storageConnected) {
           console.warn('BrandingPage: Firebase Storage connection test failed. Image uploads may not work.');
-        } else {
-          console.log('BrandingPage: Firebase Storage connection test successful');
         }
       });
-      
-      console.log('BrandingPage: Salon data loading complete');
       
     } catch (error) {
       console.error('BrandingPage: Error loading salon data:', error);
@@ -192,45 +147,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       updateSalonMapping(value, salonId).catch(err => {
         console.error('Error updating salon mapping:', err);
       });
-    }
-  };
-  
-  const handleNewServiceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewService({
-      ...newService,
-      [name]: name === 'name' ? value : Number(value)
-    });
-  };
-  
-  const addService = async () => {
-    if (!salonId) return;
-    if (newService.name && newService.duration > 0 && newService.price > 0) {
-      try {
-        // Add to Firestore
-        const serviceId = await createService(salonId, newService);
-        
-        // Update local state
-        setServices([...services, { ...newService, id: serviceId }]);
-      setNewService({ name: '', duration: 30, price: 0 });
-      } catch (error) {
-        console.error('Error adding service:', error);
-        alert('Failed to add service');
-      }
-    }
-  };
-  
-  const removeService = async (id: string) => {
-    if (!salonId) return;
-    try {
-      // Remove from Firestore
-      await deleteService(salonId, id);
-      
-      // Update local state
-    setServices(services.filter(service => service.id !== id));
-    } catch (error) {
-      console.error('Error removing service:', error);
-      alert('Failed to remove service');
     }
   };
   
@@ -314,17 +230,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       setSavingChanges(true);
       setError('');
       
-      console.log('Saving changes to salon:', salonId);
-      console.log('Data to save:', {
-        name: salonInfo.name,
-        logoUrl: salonInfo.logoUrl,
-        address: salonInfo.address,
-        phone: salonInfo.phone,
-        brandPrimaryColor: salonInfo.brandPrimaryColor,
-        brandSecondaryColor: salonInfo.brandSecondaryColor,
-        businessHours: businessHours
-      });
-      
       // Update salon info in Firestore
       await updateSalon(salonId, {
         name: salonInfo.name,
@@ -338,8 +243,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       
       // Update the salon name mapping
       await updateSalonMapping(salonInfo.name, salonId);
-      
-      console.log('Changes saved successfully!');
       
       // Show success message
       setSavedSuccess(true);
@@ -401,7 +304,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Salon Branding</h1>
-        <p className="text-gray-600">Customize your salon's appearance and services</p>
+        <p className="text-gray-600">Customize your salon's appearance and business hours</p>
       </div>
       
       {error && (
@@ -604,118 +507,56 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
             </div>
           </div>
         </div>
-        
-        {/* Services */}
-        <div className="md:col-span-3 bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-4">Services</h2>
-          
-          <div className="space-y-4">
-            {services.map(service => (
-              <div key={service.id} className="flex items-center border rounded-md p-3">
-                <div className="flex-grow">
-                  <div className="font-medium">{service.name}</div>
-                  <div className="text-sm text-gray-600">
-                    {service.duration} min • {service.price} JOD
-                  </div>
-                </div>
-                <button 
-                  onClick={() => removeService(service.id)}
-                  className="p-1.5 text-gray-400 hover:text-red-500"
-                >
-                  <Minus className="h-5 w-5" />
-                </button>
-              </div>
-            ))}
-            
-            <div className="border rounded-md p-3 border-dashed">
-              <div className="grid grid-cols-5 gap-2">
-                <div className="col-span-2">
-                  <input
-                    name="name"
-                    value={newService.name}
-                    onChange={handleNewServiceChange}
-                    placeholder="Service name"
-                    className="border rounded px-2 py-1 text-sm w-full"
-                  />
-                </div>
-                <div>
-                  <input
-                    name="duration"
-                    type="number"
-                    value={newService.duration || ''}
-                    onChange={handleNewServiceChange}
-                    placeholder="Min"
-                    className="border rounded px-2 py-1 text-sm w-full"
-                  />
-                </div>
-                <div>
-                  <input
-                    name="price"
-                    type="number"
-                    value={newService.price || ''}
-                    onChange={handleNewServiceChange}
-                    placeholder="JOD"
-                    className="border rounded px-2 py-1 text-sm w-full"
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <button 
-                    onClick={addService}
-                    className="p-1 bg-primary/10 text-primary rounded-md hover:bg-primary/20"
-                  >
-                    <Plus className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Business Hours */}
-        <div className="md:col-span-2 bg-white rounded-lg shadow-sm p-6">
+      </div>
+      
+      {/* Business Hours - Full Width Section */}
+      <div className="mt-6">
+        <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4">Business Hours</h2>
           
-          <div className="space-y-3">
-            {(Object.keys(businessHours) as Array<keyof typeof businessHours>).map(day => (
-              <div key={day} className="flex items-center py-1 border-b">
-                <div className="w-24 font-medium capitalize">{day}</div>
-                <div className="flex items-center space-x-2 flex-grow">
-                  <select
-                    value={businessHours[day].open}
-                    onChange={(e) => handleBusinessHoursChange(day, 'open', e.target.value)}
-                    disabled={!businessHours[day].isOpen}
-                    className="border rounded px-2 py-1 text-sm"
-                  >
-                    {Array.from({ length: 24 }).map((_, i) => (
-                      <option key={i} value={`${i.toString().padStart(2, '0')}:00`}>
-                        {`${i.toString().padStart(2, '0')}:00`}
-                      </option>
-                    ))}
-                  </select>
-                  <span>to</span>
-                  <select
-                    value={businessHours[day].close}
-                    onChange={(e) => handleBusinessHoursChange(day, 'close', e.target.value)}
-                    disabled={!businessHours[day].isOpen}
-                    className="border rounded px-2 py-1 text-sm"
-                  >
-                    {Array.from({ length: 24 }).map((_, i) => (
-                      <option key={i} value={`${i.toString().padStart(2, '0')}:00`}>
-                        {`${i.toString().padStart(2, '0')}:00`}
-                      </option>
-                    ))}
-                  </select>
+          <div className="max-w-2xl">
+            <div className="space-y-3">
+              {(Object.keys(businessHours) as Array<keyof typeof businessHours>).map(day => (
+                <div key={day} className="flex items-center py-1 border-b">
+                  <div className="w-24 font-medium capitalize">{day}</div>
+                  <div className="flex items-center space-x-2 flex-grow">
+                    <select
+                      value={businessHours[day].open}
+                      onChange={(e) => handleBusinessHoursChange(day, 'open', e.target.value)}
+                      disabled={!businessHours[day].isOpen}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      {Array.from({ length: 24 }).map((_, i) => (
+                        <option key={i} value={`${i.toString().padStart(2, '0')}:00`}>
+                          {`${i.toString().padStart(2, '0')}:00`}
+                        </option>
+                      ))}
+                    </select>
+                    <span>to</span>
+                    <select
+                      value={businessHours[day].close}
+                      onChange={(e) => handleBusinessHoursChange(day, 'close', e.target.value)}
+                      disabled={!businessHours[day].isOpen}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      {Array.from({ length: 24 }).map((_, i) => (
+                        <option key={i} value={`${i.toString().padStart(2, '0')}:00`}>
+                          {`${i.toString().padStart(2, '0')}:00`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ml-4">
+                    <input
+                      type="checkbox"
+                      checked={businessHours[day].isOpen}
+                      onChange={(e) => handleBusinessHoursChange(day, 'isOpen', e.target.checked)}
+                      className="rounded text-primary focus:ring-primary"
+                    />
+                  </div>
                 </div>
-                <div className="ml-4">
-                  <input
-                    type="checkbox"
-                    checked={businessHours[day].isOpen}
-                    onChange={(e) => handleBusinessHoursChange(day, 'isOpen', e.target.checked)}
-                    className="rounded text-primary focus:ring-primary"
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
