@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Search, Check, User } from 'lucide-react';
+import { Plus, X, Search, Check, User, Edit } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Modal from '../../components/common/Modal';
@@ -7,6 +7,7 @@ import {
   getSalonServices, 
   getSalonEmployees,
   createService, 
+  updateService,
   deleteService, 
   Service as FirestoreService,
   Employee as FirestoreEmployee 
@@ -44,12 +45,22 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
   const [services, setServices] = useState<Service[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
   const [isSuggestedModalOpen, setIsSuggestedModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
   const [newService, setNewService] = useState({
+    name: '',
+    duration: 30,
+    price: 0,
+    description: '',
+    assignedEmployees: [] as string[]
+  });
+  
+  const [editService, setEditService] = useState({
     name: '',
     duration: 30,
     price: 0,
@@ -108,6 +119,14 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
     }));
   };
   
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditService(prev => ({
+      ...prev,
+      [name]: name === 'duration' || name === 'price' ? Number(value) : value
+    }));
+  };
+  
   const toggleEmployee = (employeeId: string) => {
     setNewService(prev => ({
       ...prev,
@@ -115,6 +134,33 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
         ? prev.assignedEmployees.filter(id => id !== employeeId)
         : [...prev.assignedEmployees, employeeId]
     }));
+  };
+  
+  const toggleEditEmployee = (employeeId: string) => {
+    setEditService(prev => ({
+      ...prev,
+      assignedEmployees: prev.assignedEmployees.includes(employeeId)
+        ? prev.assignedEmployees.filter(id => id !== employeeId)
+        : [...prev.assignedEmployees, employeeId]
+    }));
+  };
+  
+  const openEditModal = (service: Service) => {
+    setEditingService(service);
+    setEditService({
+      name: service.name,
+      duration: service.duration,
+      price: service.price,
+      description: service.description,
+      assignedEmployees: service.assignedEmployees
+    });
+    setIsEditModalOpen(true);
+  };
+  
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingService(null);
+    setEditService({ name: '', duration: 30, price: 0, description: '', assignedEmployees: [] });
   };
   
   const addService = async () => {
@@ -174,6 +220,33 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
     } catch (error) {
       console.error('Error removing service:', error);
       alert('Failed to remove service');
+    }
+  };
+  
+  const updateServiceData = async () => {
+    if (!editingService) return;
+    
+    try {
+      // Update in Firestore
+      await updateService(salonId, editingService.id, {
+        name: editService.name,
+        duration: editService.duration,
+        price: editService.price,
+        description: editService.description,
+        assignedEmployees: editService.assignedEmployees
+      });
+      
+      // Update local state
+      setServices(services.map(service => 
+        service.id === editingService.id 
+          ? { ...service, ...editService }
+          : service
+      ));
+      
+      closeEditModal();
+    } catch (error) {
+      console.error('Error updating service:', error);
+      alert('Failed to update service');
     }
   };
   
@@ -263,12 +336,20 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => removeService(service.id)}
-                  className="text-gray-400 hover:text-red-500"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEditModal(service)}
+                    className="text-gray-400 hover:text-primary"
+                  >
+                    <Edit className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => removeService(service.id)}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -371,6 +452,101 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
             </Button>
             <Button onClick={addService} disabled={!newService.name || !newService.duration || !newService.price}>
               Add Service
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
+      {/* Edit service modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        title="Edit Service"
+        closable={true}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Service Name"
+            name="name"
+            value={editService.name}
+            onChange={handleEditInputChange}
+            placeholder="Enter service name"
+            required
+          />
+          
+          <Input
+            label="Duration (minutes)"
+            name="duration"
+            type="number"
+            value={editService.duration}
+            onChange={handleEditInputChange}
+            placeholder="Enter duration in minutes"
+            required
+          />
+          
+          <Input
+            label="Price (JOD)"
+            name="price"
+            type="number"
+            value={editService.price}
+            onChange={handleEditInputChange}
+            placeholder="Enter price"
+            required
+          />
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={editService.description}
+              onChange={handleEditInputChange}
+              rows={3}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+              placeholder="Enter service description"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assign Employees
+            </label>
+            {employees.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No employees available. Add employees first.</p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto space-y-2 border rounded-md p-2">
+                {employees.map(employee => (
+                  <div
+                    key={employee.id}
+                    className="flex items-center"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleEditEmployee(employee.id)}
+                      className={`flex items-center justify-between w-full p-2 rounded-md border ${
+                        editService.assignedEmployees.includes(employee.id)
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-primary/50'
+                      }`}
+                    >
+                      <span>{employee.name}</span>
+                      {editService.assignedEmployees.includes(employee.id) && (
+                        <Check className="h-5 w-5 text-primary" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <Button variant="outline" onClick={closeEditModal}>
+              Cancel
+            </Button>
+            <Button onClick={updateServiceData} disabled={!editService.name || !editService.duration || !editService.price}>
+              Save
             </Button>
           </div>
         </div>

@@ -7,7 +7,7 @@ import Input from '../components/common/Input';
 import Footer from '../components/common/Footer';
 import Modal from '../components/common/Modal';
 import SalonLogoHeader from '../components/booking/SalonLogoHeader';
-import { getSalon, Salon, getSalonServices, Service, createBooking } from '../firebase';
+import { getSalon, Salon, getSalonServices, Service, createBooking, getSalonEmployees, Employee, getBookingsByDate, Booking } from '../firebase';
 import { Timestamp } from 'firebase/firestore';
 
 type BookingStep = 'service' | 'time' | 'info' | 'confirm' | 'success';
@@ -18,6 +18,8 @@ export default function BookingPage() {
   
   const [salon, setSalon] = useState<Salon | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -51,6 +53,51 @@ export default function BookingPage() {
   
   const timeSlots = generateTimeSlots();
   
+  // Check if a time slot is available for the selected service
+  const isTimeSlotAvailable = (timeSlot: string): boolean => {
+    if (!selectedService) return false;
+    
+    // Get the selected service details
+    const serviceData = services.find(s => s.id === selectedService);
+    if (!serviceData) return false;
+    
+    // Find employees who can perform this service
+    const availableEmployees = employees.filter(employee => 
+      employee.services.includes(serviceData.name)
+    );
+    
+    if (availableEmployees.length === 0) return false;
+    
+    // Create a date object for the selected time slot today
+    const today = new Date();
+    const [hours, minutes] = timeSlot.split(':');
+    const slotTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+    const slotEndTime = new Date(slotTime.getTime() + serviceData.duration * 60000); // Add service duration
+    
+    // Check if any employee is available during this time slot
+    return availableEmployees.some(employee => {
+      // Check if this employee has any conflicting bookings
+      const employeeBookings = todayBookings.filter(booking => {
+        // Find the service for this booking to check duration
+        const bookingService = services.find(s => s.name === booking.service);
+        if (!bookingService) return false;
+        
+        // Check if the employee can perform this booked service
+        if (!employee.services.includes(booking.service)) return false;
+        
+        // Get booking time and end time
+        const bookingTime = booking.time.toDate();
+        const bookingEndTime = new Date(bookingTime.getTime() + bookingService.duration * 60000);
+        
+        // Check for time overlap
+        return (slotTime < bookingEndTime && slotEndTime > bookingTime);
+      });
+      
+      // Employee is available if they have no conflicting bookings
+      return employeeBookings.length === 0;
+    });
+  };
+  
   useEffect(() => {
     if (salonId) {
       loadSalonData();
@@ -77,8 +124,14 @@ export default function BookingPage() {
         return;
       }
       
-      // Load salon details
-      const salonData = await getSalon(salonId);
+      // Load salon details, services, employees, and today's bookings in parallel
+      const [salonData, servicesData, employeesData, bookingsData] = await Promise.all([
+        getSalon(salonId),
+        getSalonServices(salonId),
+        getSalonEmployees(salonId),
+        getBookingsByDate(salonId, new Date())
+      ]);
+      
       if (!salonData) {
         setError('Salon not found');
         setLoading(false);
@@ -86,10 +139,9 @@ export default function BookingPage() {
       }
       
       setSalon(salonData);
-      
-      // Load salon services
-      const servicesData = await getSalonServices(salonId);
       setServices(servicesData);
+      setEmployees(employeesData);
+      setTodayBookings(bookingsData);
       
     } catch (error) {
       console.error('Error loading salon data:', error);
@@ -101,10 +153,58 @@ export default function BookingPage() {
   
   const handleServiceSelect = (serviceId: string) => {
     setSelectedService(serviceId);
+    
+    // Clear selected time if it's no longer available for the new service
+    if (selectedTime) {
+      // Temporarily set the service to check availability
+      const oldService = selectedService;
+      
+      // Check if the currently selected time is still available for the new service
+      // We need to manually check since state hasn't updated yet
+      const serviceData = services.find(s => s.id === serviceId);
+      if (serviceData) {
+        const availableEmployees = employees.filter(employee => 
+          employee.services.includes(serviceData.name)
+        );
+        
+        if (availableEmployees.length === 0) {
+          setSelectedTime(null);
+        } else {
+          // Check time availability with the new service
+          const today = new Date();
+          const [hours, minutes] = selectedTime.split(':');
+          const slotTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+          const slotEndTime = new Date(slotTime.getTime() + serviceData.duration * 60000);
+          
+          const isStillAvailable = availableEmployees.some(employee => {
+            const employeeBookings = todayBookings.filter(booking => {
+              const bookingService = services.find(s => s.name === booking.service);
+              if (!bookingService) return false;
+              
+              if (!employee.services.includes(booking.service)) return false;
+              
+              const bookingTime = booking.time.toDate();
+              const bookingEndTime = new Date(bookingTime.getTime() + bookingService.duration * 60000);
+              
+              return (slotTime < bookingEndTime && slotEndTime > bookingTime);
+            });
+            
+            return employeeBookings.length === 0;
+          });
+          
+          if (!isStillAvailable) {
+            setSelectedTime(null);
+          }
+        }
+      }
+    }
   };
   
   const handleTimeSelect = (time: string) => {
-    setSelectedTime(time);
+    // Only allow selection if the time slot is available
+    if (isTimeSlotAvailable(time)) {
+      setSelectedTime(time);
+    }
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,6 +268,12 @@ export default function BookingPage() {
     try {
       if (!salonId || !selectedService || !selectedTime) {
         console.error('Missing booking information');
+        return;
+      }
+      
+      // Double-check availability before booking
+      if (!isTimeSlotAvailable(selectedTime)) {
+        alert('Sorry, this time slot is no longer available. Please select a different time.');
         return;
       }
       
@@ -507,19 +613,38 @@ export default function BookingPage() {
         </p>
         
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {timeSlots.map(time => (
-            <div 
-              key={time}
-              className={`border rounded-lg py-3 px-4 text-center cursor-pointer transition-all duration-200 ${selectedTime === time ? 'bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-              style={{ 
-                borderColor: selectedTime === time ? colors.primaryColor : undefined,
-                backgroundColor: selectedTime === time ? colors.primaryColorLight : undefined
-              }}
-              onClick={() => handleTimeSelect(time)}
-            >
-              <span className="font-medium">{time}</span>
-            </div>
-          ))}
+          {timeSlots.map(time => {
+            const isAvailable = isTimeSlotAvailable(time);
+            const isSelected = selectedTime === time;
+            
+            return (
+              <div 
+                key={time}
+                className={`border rounded-lg py-3 px-4 text-center transition-all duration-200 ${
+                  !isAvailable 
+                    ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50' 
+                    : isSelected 
+                    ? 'bg-primary/5 cursor-pointer' 
+                    : 'border-gray-200 hover:border-primary/50 cursor-pointer'
+                }`}
+                style={{ 
+                  borderColor: isSelected && isAvailable ? colors.primaryColor : undefined,
+                  backgroundColor: isSelected && isAvailable ? colors.primaryColorLight : undefined
+                }}
+                onClick={() => isAvailable && handleTimeSelect(time)}
+                title={!isAvailable ? 'No staff available at this time' : undefined}
+              >
+                <span className={`font-medium ${!isAvailable ? 'text-gray-400' : ''}`}>
+                  {time}
+                </span>
+                {!isAvailable && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    Unavailable
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         
         <div className="flex justify-between">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Search, Check } from 'lucide-react';
+import { Plus, X, Search, Check, Edit } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Modal from '../../components/common/Modal';
@@ -7,6 +7,7 @@ import {
   getSalonEmployees, 
   getSalonServices,
   createEmployee, 
+  updateEmployee,
   deleteEmployee,
   Service as FirestoreService, 
   Employee as FirestoreEmployee 
@@ -33,11 +34,20 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
   const [newEmployee, setNewEmployee] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    services: [] as string[]
+  });
+  
+  const [editEmployee, setEditEmployee] = useState({
     name: '',
     email: '',
     phone: '',
@@ -90,6 +100,14 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
     }));
   };
   
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditEmployee(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
   const toggleService = (serviceName: string) => {
     setNewEmployee(prev => ({
       ...prev,
@@ -97,6 +115,32 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
         ? prev.services.filter(s => s !== serviceName)
         : [...prev.services, serviceName]
     }));
+  };
+  
+  const toggleEditService = (serviceName: string) => {
+    setEditEmployee(prev => ({
+      ...prev,
+      services: prev.services.includes(serviceName)
+        ? prev.services.filter(s => s !== serviceName)
+        : [...prev.services, serviceName]
+    }));
+  };
+  
+  const openEditModal = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditEmployee({
+      name: employee.name,
+      email: employee.email,
+      phone: employee.phone,
+      services: employee.services
+    });
+    setIsEditModalOpen(true);
+  };
+  
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingEmployee(null);
+    setEditEmployee({ name: '', email: '', phone: '', services: [] });
   };
   
   const addEmployee = async () => {
@@ -129,6 +173,32 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
     } catch (error) {
       console.error('Error removing employee:', error);
       alert('Failed to remove employee');
+    }
+  };
+  
+  const updateEmployeeData = async () => {
+    if (!editingEmployee) return;
+    
+    try {
+      // Update in Firestore
+      await updateEmployee(salonId, editingEmployee.id, {
+        name: editEmployee.name,
+        email: editEmployee.email,
+        phone: editEmployee.phone,
+        services: editEmployee.services
+      });
+      
+      // Update local state
+      setEmployees(employees.map(emp => 
+        emp.id === editingEmployee.id 
+          ? { ...emp, ...editEmployee }
+          : emp
+      ));
+      
+      closeEditModal();
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      alert('Failed to update employee');
     }
   };
   
@@ -180,12 +250,22 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
               <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold">
                 {employee.name.substring(0, 1).toUpperCase()}
               </div>
-              <button
-                onClick={() => removeEmployee(employee.id)}
-                className="absolute top-2 right-2 p-1 bg-white rounded-full text-gray-400 hover:text-red-500"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="absolute top-2 right-2 flex gap-2">
+                <button
+                  onClick={() => openEditModal(employee)}
+                  className="p-1 bg-white rounded-full text-gray-400 hover:text-blue-500"
+                  title="Edit employee"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => removeEmployee(employee.id)}
+                  className="p-1 bg-white rounded-full text-gray-400 hover:text-red-500"
+                  title="Delete employee"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900">{employee.name}</h3>
@@ -281,11 +361,93 @@ export default function EmployeesPage({ salonId }: EmployeesPageProps) {
           </div>
           
           <div className="mt-6 flex justify-end space-x-3">
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={addEmployee}
               disabled={!newEmployee.name || !newEmployee.email || !newEmployee.phone || newEmployee.services.length === 0}
             >
               Add Employee
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
+      {/* Edit employee modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        title="Edit Employee"
+        closable={true}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Full Name"
+            name="name"
+            value={editEmployee.name}
+            onChange={handleEditInputChange}
+            placeholder="Enter employee name"
+            required
+          />
+          
+          <Input
+            label="Email"
+            name="email"
+            type="email"
+            value={editEmployee.email}
+            onChange={handleEditInputChange}
+            placeholder="Enter email address"
+            required
+          />
+          
+          <Input
+            label="Phone"
+            name="phone"
+            value={editEmployee.phone}
+            onChange={handleEditInputChange}
+            placeholder="Enter phone number"
+            required
+          />
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Services
+            </label>
+            <div className="space-y-2">
+              {services.map(service => (
+                <div
+                  key={service.id}
+                  className="flex items-center"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleEditService(service.name)}
+                    className={`flex items-center justify-between w-full p-2 rounded-md border ${
+                      editEmployee.services.includes(service.name)
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 hover:border-primary/50'
+                    }`}
+                  >
+                    <span>{service.name}</span>
+                    {editEmployee.services.includes(service.name) && (
+                      <Check className="h-5 w-5 text-primary" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <Button variant="outline" onClick={closeEditModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={updateEmployeeData}
+              disabled={!editEmployee.name || !editEmployee.email || !editEmployee.phone || editEmployee.services.length === 0}
+            >
+              Save Changes
             </Button>
           </div>
         </div>
