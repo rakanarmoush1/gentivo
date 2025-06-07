@@ -28,26 +28,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col justify-center bg-stone-50/30 py-12 sm:px-6 lg:px-8 font-light">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-            <span className="text-xl font-bold text-white">G</span>
+          <div className="w-12 h-12 bg-stone-900 rounded-full flex items-center justify-center">
+            <span className="text-xl font-medium text-white">G</span>
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-light text-stone-900">
           Sign in to Gentivo
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-stone-600 font-light">
           Access your salon dashboard
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border border-stone-200/60">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              <div className="bg-red-50 border border-red-200/60 text-red-800 px-4 py-3 rounded-lg">
                 {error}
               </div>
             )}
@@ -83,7 +83,7 @@ export default function LoginPage() {
             <div className="text-center">
               <Link
                 to="/"
-                className="font-medium text-primary hover:text-primary-dark"
+                className="font-medium text-stone-600 hover:text-stone-900 transition-colors duration-200"
               >
                 Back to home
               </Link>

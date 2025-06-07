@@ -113,14 +113,14 @@ export default function AdminDashboard() {
         ) : (
           <div 
             className={`${size === 'large' ? 'w-8 h-8' : 'w-6 h-6'} rounded-full flex items-center justify-center`}
-            style={{ backgroundColor: currentSalon?.brandPrimaryColor || '#4f46e5' }}
+            style={{ backgroundColor: currentSalon?.brandPrimaryColor || '#0c0a09' }}
           >
-            <span className="text-white font-bold text-sm">
+            <span className="text-white font-medium text-sm">
               {currentSalon?.name?.substring(0, 2).toUpperCase() || 'SA'}
             </span>
           </div>
         )}
-        <span className={`ml-2 ${textSize} font-bold`}>
+        <span className={`ml-3 ${textSize} font-medium text-stone-900`}>
           {currentSalon?.name || 'Your Salon'}
         </span>
       </div>
@@ -128,13 +128,13 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-stone-50/30 flex font-light">
       {/* Mobile sidebar toggle */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white shadow-sm">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-white border-b border-stone-200/60">
         <div className="flex items-center">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+            className="text-stone-500 hover:text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:ring-offset-2 rounded-lg p-1"
           >
             {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -148,9 +148,9 @@ export default function AdminDashboard() {
       <div className={`fixed inset-0 z-40 flex transform ease-in-out duration-300 lg:hidden
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white border-r border-stone-200/60">
           <div className="flex-1 overflow-y-auto pt-16 pb-4">
-            <div className="flex-shrink-0 flex items-center px-6 mb-6">
+            <div className="flex-shrink-0 flex items-center px-6 mb-8">
               {renderSalonBranding('large')}
             </div>
             
@@ -160,8 +160,8 @@ export default function AdminDashboard() {
                   key={item.name}
                   to={item.path}
                   className={({ isActive }) => 
-                    `group flex items-center px-3 py-2 text-base font-medium rounded-md ${
-                      isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-50'
+                    `group flex items-center px-3 py-3 text-base font-medium rounded-lg transition-all duration-200 ${
+                      isActive ? 'bg-stone-100 text-stone-900' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`
                   }
                   end={item.path === '/admin'}
@@ -174,15 +174,15 @@ export default function AdminDashboard() {
             </nav>
           </div>
           
-          <div className="flex-shrink-0 p-4 border-t">
+          <div className="flex-shrink-0 p-4 border-t border-stone-200/60">
             <div className="flex items-center">
               <div>
-                <p className="text-sm font-medium text-gray-700">{currentUser?.email}</p>
+                <p className="text-sm font-medium text-stone-900">{currentUser?.email}</p>
                 {userSalons.length > 0 && (
                   <select
                     value={selectedSalonId}
                     onChange={(e) => handleSalonChange(e.target.value)}
-                    className="mt-1 text-xs text-gray-500 bg-transparent border-none"
+                    className="mt-1 text-xs text-stone-500 bg-transparent border-none font-light"
                   >
                     {userSalons.map(salon => (
                       <option key={salon.id} value={salon.id}>{salon.name}</option>
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={handleLogout}
-                className="ml-auto p-1 rounded-full hover:bg-gray-100 text-gray-500"
+                className="ml-auto p-2 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-700 transition-colors duration-200"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -206,8 +206,8 @@ export default function AdminDashboard() {
       {/* Static sidebar for desktop */}
       <div className="hidden lg:flex lg:flex-shrink-0">
         <div className="flex flex-col w-64">
-          <div className="flex flex-col flex-grow h-0 border-r border-gray-200 pt-6 pb-4 bg-white overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-6 mb-6">
+          <div className="flex flex-col flex-grow h-0 border-r border-stone-200/60 pt-6 pb-4 bg-white overflow-y-auto">
+            <div className="flex items-center flex-shrink-0 px-6 mb-8">
               {renderSalonBranding('large')}
             </div>
             
@@ -217,8 +217,8 @@ export default function AdminDashboard() {
                   key={item.name}
                   to={item.path}
                   className={({ isActive }) => 
-                    `group flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                      isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-50'
+                    `group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      isActive ? 'bg-stone-100 text-stone-900' : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`
                   }
                   end={item.path === '/admin'}
@@ -230,15 +230,15 @@ export default function AdminDashboard() {
             </nav>
           </div>
           
-          <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
+          <div className="flex-shrink-0 p-4 border-t border-stone-200/60 bg-white">
             <div className="flex items-center">
               <div>
-                <p className="text-sm font-medium text-gray-700">{currentUser?.email}</p>
+                <p className="text-sm font-medium text-stone-900">{currentUser?.email}</p>
                 {userSalons.length > 0 && (
                   <select
                     value={selectedSalonId}
                     onChange={(e) => handleSalonChange(e.target.value)}
-                    className="mt-1 text-xs text-gray-500 bg-transparent border-none"
+                    className="mt-1 text-xs text-stone-500 bg-transparent border-none font-light"
                   >
                     {userSalons.map(salon => (
                       <option key={salon.id} value={salon.id}>{salon.name}</option>
@@ -248,7 +248,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={handleLogout}
-                className="ml-auto p-1 rounded-full hover:bg-gray-100 text-gray-500"
+                className="ml-auto p-2 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-700 transition-colors duration-200"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -260,18 +260,18 @@ export default function AdminDashboard() {
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <main className="flex-1 relative overflow-y-auto focus:outline-none pt-16 lg:pt-0">
-          <div className="py-6">
+          <div className="py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center mb-6">
+              <div className="flex items-center mb-8">
                 {/* Breadcrumb */}
-                <div className="flex items-center text-sm text-gray-500">
+                <div className="flex items-center text-sm text-stone-500 font-light">
                   <span>Dashboard</span>
                   <ChevronRight className="mx-2 h-4 w-4" />
-                  {location.pathname === '/admin' && <span className="font-medium text-gray-900">Bookings</span>}
-                  {location.pathname === '/admin/services' && <span className="font-medium text-gray-900">Services</span>}
-                  {location.pathname === '/admin/employees' && <span className="font-medium text-gray-900">Staff</span>}
-                  {location.pathname === '/admin/branding' && <span className="font-medium text-gray-900">Salon Branding</span>}
-                  {location.pathname === '/admin/settings' && <span className="font-medium text-gray-900">Settings</span>}
+                  {location.pathname === '/admin' && <span className="font-medium text-stone-900">Bookings</span>}
+                  {location.pathname === '/admin/services' && <span className="font-medium text-stone-900">Services</span>}
+                  {location.pathname === '/admin/employees' && <span className="font-medium text-stone-900">Staff</span>}
+                  {location.pathname === '/admin/branding' && <span className="font-medium text-stone-900">Salon Branding</span>}
+                  {location.pathname === '/admin/settings' && <span className="font-medium text-stone-900">Settings</span>}
                 </div>
                 
                 {/* Salon booking preview button */}

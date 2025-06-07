@@ -23,7 +23,9 @@ export interface Booking {
   service: string;
   time: Timestamp;
   createdAt: Timestamp;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  staffAssigned?: string; // Employee ID or 'any' for any available staff
+  paymentStatus?: 'paid' | 'unpaid';
 }
 
 // Get all bookings for a salon
@@ -156,7 +158,7 @@ export async function createBooking(
 export async function updateBookingStatus(
   salonId: string, 
   bookingId: string, 
-  status: 'pending' | 'confirmed' | 'cancelled'
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
 ): Promise<void> {
   try {
     if (!salonId || !bookingId) throw new Error('Salon ID and Booking ID are required');
@@ -217,6 +219,33 @@ export async function deleteBooking(salonId: string, bookingId: string): Promise
     console.log(`Booking ${bookingId} successfully deleted`);
   } catch (error) {
     console.error('Error deleting booking:', error);
+    throw error;
+  }
+}
+
+// Update a booking's details (for rescheduling, etc.)
+export async function updateBooking(
+  salonId: string, 
+  bookingId: string, 
+  data: Partial<Omit<Booking, 'id' | 'createdAt'>>
+): Promise<void> {
+  try {
+    if (!salonId || !bookingId) throw new Error('Salon ID and Booking ID are required');
+    
+    const bookingRef = doc(db, `salons/${salonId}/bookings`, bookingId);
+    
+    // Check if booking exists
+    const bookingDoc = await getDoc(bookingRef);
+    if (!bookingDoc.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    await updateDoc(bookingRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating booking:', error);
     throw error;
   }
 } 

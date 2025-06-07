@@ -38,6 +38,11 @@ export {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  addServiceToEmployee,
+  removeServiceFromEmployee,
+  syncServiceWithEmployees,
+  removeServiceFromAllEmployees,
+  updateServiceNameForEmployees,
   type Employee
 } from './employees';
 
@@ -48,6 +53,7 @@ export {
   getBooking,
   createBooking,
   updateBookingStatus,
+  updateBooking,
   deleteBooking,
   type Booking
 } from './bookings';

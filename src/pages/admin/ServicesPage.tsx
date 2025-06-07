@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Search, Check, User, Edit } from 'lucide-react';
+import { Plus, X, Search, Check, User, Edit, ToggleLeft, ToggleRight, GripVertical, AlertTriangle } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Modal from '../../components/common/Modal';
+import { ToastContainer } from '../../components/common/Toast';
 import { 
   getSalonServices, 
   getSalonEmployees,
@@ -10,7 +11,10 @@ import {
   updateService,
   deleteService, 
   Service as FirestoreService,
-  Employee as FirestoreEmployee 
+  Employee as FirestoreEmployee,
+  syncServiceWithEmployees,
+  removeServiceFromAllEmployees,
+  updateServiceNameForEmployees
 } from '../../firebase';
 
 interface Service {
@@ -20,11 +24,19 @@ interface Service {
   price: number;
   description: string;
   assignedEmployees: string[];
+  isActive?: boolean;
+  displayOrder?: number;
 }
 
 interface Employee {
   id: string;
   name: string;
+}
+
+interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  message: string;
 }
 
 // Suggested services that can be quickly added
@@ -48,16 +60,32 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isSuggestedModalOpen, setIsSuggestedModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [draggedService, setDraggedService] = useState<Service | null>(null);
+  
+  // Toast notifications
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, type, message }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
   
   const [newService, setNewService] = useState({
     name: '',
     duration: 30,
     price: 0,
     description: '',
-    assignedEmployees: [] as string[]
+    assignedEmployees: [] as string[],
+    isActive: true
   });
   
   const [editService, setEditService] = useState({
@@ -65,7 +93,8 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
     duration: 30,
     price: 0,
     description: '',
-    assignedEmployees: [] as string[]
+    assignedEmployees: [] as string[],
+    isActive: true
   });
   
   useEffect(() => {
@@ -86,14 +115,19 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       ]);
       
       // Map Firestore service objects to our local service format
-      const formattedServices = salonServices.map(service => ({
+      const formattedServices = salonServices.map((service, index) => ({
         id: service.id,
         name: service.name,
         duration: service.duration,
         price: service.price,
         description: service.description || '',
-        assignedEmployees: service.assignedEmployees || []
+        assignedEmployees: service.assignedEmployees || [],
+        isActive: service.isActive !== undefined ? service.isActive : true,
+        displayOrder: service.displayOrder !== undefined ? service.displayOrder : index
       }));
+      
+      // Sort by display order
+      formattedServices.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
       
       // Map employees to a simpler format for selection
       const formattedEmployees = salonEmployees.map(employee => ({
@@ -108,6 +142,110 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       setError('Failed to load services or employees');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleServiceActive = async (service: Service) => {
+    try {
+      const newActiveState = !service.isActive;
+      await updateService(salonId, service.id, { isActive: newActiveState });
+      
+      setServices(prev => prev.map(s => 
+        s.id === service.id ? { ...s, isActive: newActiveState } : s
+      ));
+      
+      showNotification(
+        `Service ${newActiveState ? 'activated' : 'deactivated'} successfully`, 
+        'success'
+      );
+    } catch (error) {
+      console.error('Error toggling service active state:', error);
+      showNotification('Failed to update service status', 'error');
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, service: Service) => {
+    setDraggedService(service);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetService: Service) => {
+    e.preventDefault();
+    
+    if (!draggedService || draggedService.id === targetService.id) {
+      setDraggedService(null);
+      return;
+    }
+
+    try {
+      const newServices = [...services];
+      const draggedIndex = newServices.findIndex(s => s.id === draggedService.id);
+      const targetIndex = newServices.findIndex(s => s.id === targetService.id);
+      
+      // Remove dragged service and insert at target position
+      const [removed] = newServices.splice(draggedIndex, 1);
+      newServices.splice(targetIndex, 0, removed);
+      
+      // Update display orders
+      const updatedServices = newServices.map((service, index) => ({
+        ...service,
+        displayOrder: index
+      }));
+      
+      setServices(updatedServices);
+      
+      // Update in Firebase
+      const updatePromises = updatedServices.map(service => 
+        updateService(salonId, service.id, { displayOrder: service.displayOrder })
+      );
+      
+      await Promise.all(updatePromises);
+      showNotification('Service order updated successfully', 'success');
+      
+    } catch (error) {
+      console.error('Error reordering services:', error);
+      showNotification('Failed to update service order', 'error');
+      // Reload data to reset order
+      loadData();
+    }
+    
+    setDraggedService(null);
+  };
+
+  const openDeleteModal = (service: Service) => {
+    setServiceToDelete(service);
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setServiceToDelete(null);
+    setIsDeleteModalOpen(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!serviceToDelete) return;
+    
+    try {
+      // Remove service from all employee records first
+      await removeServiceFromAllEmployees(salonId, serviceToDelete.name);
+      
+      // Then delete the service itself
+      await deleteService(salonId, serviceToDelete.id);
+      
+      // Notify other components that service assignments changed
+      window.dispatchEvent(new CustomEvent('serviceAssignmentChanged'));
+      
+      setServices(services.filter(service => service.id !== serviceToDelete.id));
+      showNotification('Service deleted successfully and removed from all staff', 'success');
+      closeDeleteModal();
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      showNotification('Failed to delete service', 'error');
     }
   };
   
@@ -152,7 +290,8 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       duration: service.duration,
       price: service.price,
       description: service.description,
-      assignedEmployees: service.assignedEmployees
+      assignedEmployees: service.assignedEmployees,
+      isActive: service.isActive !== undefined ? service.isActive : true
     });
     setIsEditModalOpen(true);
   };
@@ -160,7 +299,14 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
   const closeEditModal = () => {
     setIsEditModalOpen(false);
     setEditingService(null);
-    setEditService({ name: '', duration: 30, price: 0, description: '', assignedEmployees: [] });
+    setEditService({ 
+      name: '', 
+      duration: 30, 
+      price: 0, 
+      description: '', 
+      assignedEmployees: [],
+      isActive: true 
+    });
   };
   
   const addService = async () => {
@@ -171,26 +317,48 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
         duration: newService.duration,
         price: newService.price,
         description: newService.description,
-        assignedEmployees: newService.assignedEmployees
+        assignedEmployees: newService.assignedEmployees,
+        isActive: newService.isActive,
+        displayOrder: services.length
       });
       
+      // Sync service assignments with employee records
+      if (newService.assignedEmployees.length > 0) {
+        await syncServiceWithEmployees(
+          salonId,
+          newService.name,
+          newService.assignedEmployees,
+          [] // No previous assignments for new service
+        );
+        
+        // Notify other components that service assignments changed
+        window.dispatchEvent(new CustomEvent('serviceAssignmentChanged'));
+      }
+      
       // Update local state
-      setServices([...services, { ...newService, id: serviceId }]);
+      const newServiceData = { 
+        ...newService, 
+        id: serviceId,
+        displayOrder: services.length
+      };
+      setServices([...services, newServiceData]);
       setNewService({ 
         name: '', 
         duration: 30, 
         price: 0, 
         description: '', 
-        assignedEmployees: [] 
+        assignedEmployees: [],
+        isActive: true
       });
-    setIsAddModalOpen(false);
+      setIsAddModalOpen(false);
+      showNotification('Service added successfully and assigned to staff', 'success');
     } catch (error) {
       console.error('Error adding service:', error);
-      alert('Failed to add service');
+      showNotification('Failed to add service', 'error');
     }
   };
   
-  const addSuggestedService = async (service: Omit<Service, 'id' | 'assignedEmployees'>) => {
+  const addSuggestedService = async (service: Omit<Service, 'id' | 'assignedEmployees' | 'isActive' | 'displayOrder'>) => {
     try {
       // Add to Firestore
       const serviceId = await createService(salonId, {
@@ -198,28 +366,28 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
         duration: service.duration,
         price: service.price,
         description: service.description,
-        assignedEmployees: []
+        assignedEmployees: [],
+        isActive: true,
+        displayOrder: services.length
       });
       
-      // Update local state
-      setServices([...services, { ...service, id: serviceId, assignedEmployees: [] }]);
-      setIsSuggestedModalOpen(false);
-    } catch (error) {
-      console.error('Error adding suggested service:', error);
-      alert('Failed to add service');
-    }
-  };
-  
-  const removeService = async (id: string) => {
-    try {
-      // Remove from Firestore
-      await deleteService(salonId, id);
+      // Note: Suggested services start with no employee assignments
+      // Users can assign them later through the edit modal
       
       // Update local state
-    setServices(services.filter(service => service.id !== id));
+      const newServiceData = { 
+        ...service, 
+        id: serviceId, 
+        assignedEmployees: [],
+        isActive: true,
+        displayOrder: services.length
+      };
+      setServices([...services, newServiceData]);
+      setIsSuggestedModalOpen(false);
+      showNotification('Service added successfully - assign staff in the edit menu', 'success');
     } catch (error) {
-      console.error('Error removing service:', error);
-      alert('Failed to remove service');
+      console.error('Error adding suggested service:', error);
+      showNotification('Failed to add service', 'error');
     }
   };
   
@@ -227,14 +395,40 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
     if (!editingService) return;
     
     try {
+      const oldServiceName = editingService.name;
+      const newServiceName = editService.name;
+      const nameChanged = oldServiceName !== newServiceName;
+      
       // Update in Firestore
       await updateService(salonId, editingService.id, {
         name: editService.name,
         duration: editService.duration,
         price: editService.price,
         description: editService.description,
-        assignedEmployees: editService.assignedEmployees
+        assignedEmployees: editService.assignedEmployees,
+        isActive: editService.isActive
       });
+      
+      // Handle service name change
+      if (nameChanged) {
+        await updateServiceNameForEmployees(
+          salonId,
+          oldServiceName,
+          newServiceName,
+          editService.assignedEmployees
+        );
+      }
+      
+      // Sync service assignments with employee records
+      await syncServiceWithEmployees(
+        salonId,
+        newServiceName,
+        editService.assignedEmployees,
+        editingService.assignedEmployees
+      );
+      
+      // Notify other components that service assignments changed
+      window.dispatchEvent(new CustomEvent('serviceAssignmentChanged'));
       
       // Update local state
       setServices(services.map(service => 
@@ -244,9 +438,10 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       ));
       
       closeEditModal();
+      showNotification('Service updated successfully and staff assignments synced', 'success');
     } catch (error) {
       console.error('Error updating service:', error);
-      alert('Failed to update service');
+      showNotification('Failed to update service', 'error');
     }
   };
   
@@ -265,20 +460,24 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
   if (loading) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-500">Loading services...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-300 mx-auto mb-4"></div>
+        <p className="text-stone-500">Loading services...</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="font-light">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Services</h1>
-        <p className="text-gray-600">Manage your salon's service offerings</p>
+        <h1 className="text-3xl font-light text-stone-900 mb-2">Services</h1>
+        <p className="text-stone-600 font-light">Manage your salon's service offerings</p>
       </div>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+        <div className="bg-red-50 border border-red-200/60 text-red-800 rounded-xl p-4 mb-6">
           {error}
         </div>
       )}
@@ -287,11 +486,11 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="relative flex-grow">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+            <Search className="h-5 w-5 text-stone-400" />
           </div>
           <input
             type="text"
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary w-full"
+            className="pl-10 pr-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-400 w-full font-light placeholder:text-stone-400"
             placeholder="Search services"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -312,40 +511,69 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-200">
           {filteredServices.map(service => (
-            <div key={service.id} className="p-6">
+            <div 
+              key={service.id} 
+              className={`p-6 transition-colors ${service.isActive ? '' : 'bg-gray-50 opacity-75'}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, service)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, service)}
+            >
               <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">{service.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{service.description}</p>
-                  <div className="mt-2 flex items-center space-x-4">
-                    <span className="text-sm text-gray-600">{service.duration} minutes</span>
-                    <span className="text-sm font-medium text-gray-900">{service.price} JOD</span>
+                <div className="flex items-start space-x-3 flex-1">
+                  <div className="cursor-move text-gray-400 hover:text-gray-600 mt-1">
+                    <GripVertical className="h-5 w-5" />
                   </div>
                   
-                  {service.assignedEmployees && service.assignedEmployees.length > 0 && (
-                    <div className="mt-3">
-                      <h4 className="text-xs font-medium text-gray-500 mb-1">Assigned Staff:</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {getEmployeeNames(service.assignedEmployees).map((name, i) => (
-                          <span key={i} className="inline-flex items-center text-xs bg-gray-100 px-2 py-1 rounded-full">
-                            <User className="h-3 w-3 mr-1" />
-                            {name}
-                          </span>
-                        ))}
-                      </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className={`text-lg font-medium ${service.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                        {service.name}
+                      </h3>
+                      <button
+                        onClick={() => toggleServiceActive(service)}
+                        className={`transition-colors ${
+                          service.isActive 
+                            ? 'text-green-600 hover:text-green-700' 
+                            : 'text-gray-400 hover:text-gray-500'
+                        }`}
+                        title={service.isActive ? 'Deactivate service' : 'Activate service'}
+                      >
+                        {service.isActive ? (
+                          <ToggleRight className="h-6 w-6" />
+                        ) : (
+                          <ToggleLeft className="h-6 w-6" />
+                        )}
+                      </button>
                     </div>
-                  )}
+                    
+                    <p className={`text-sm mt-1 ${service.isActive ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {service.description}
+                    </p>
+                    
+                    <div className="mt-2 flex items-center space-x-4">
+                      <span className={`text-sm ${service.isActive ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {service.duration} minutes
+                      </span>
+                      <span className={`text-sm font-medium ${service.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                        {service.price} JOD
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-2">
+                
+                <div className="flex gap-2 ml-4">
                   <button
                     onClick={() => openEditModal(service)}
-                    className="text-gray-400 hover:text-primary"
+                    className="text-stone-400 hover:text-stone-600 transition-colors duration-200"
+                    title="Edit service"
                   >
                     <Edit className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => removeService(service.id)}
-                    className="text-gray-400 hover:text-red-500"
+                    onClick={() => openDeleteModal(service)}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                    title="Delete service"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -356,7 +584,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
           
           {filteredServices.length === 0 && (
             <div className="p-6 text-center text-gray-500">
-              No services found
+              {searchQuery ? 'No services match your search' : 'No services found'}
             </div>
           )}
         </div>
@@ -408,7 +636,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
               value={newService.description}
               onChange={handleInputChange}
               rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+              className="mt-1 block w-full rounded-lg border-stone-300 focus:border-stone-400 focus:ring focus:ring-stone-300 focus:ring-opacity-50 font-light"
               placeholder="Enter service description"
             />
           </div>
@@ -431,13 +659,13 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
                       onClick={() => toggleEmployee(employee.id)}
                       className={`flex items-center justify-between w-full p-2 rounded-md border ${
                         newService.assignedEmployees.includes(employee.id)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 hover:border-primary/50'
+                          ? 'border-stone-300 bg-stone-50'
+                          : 'border-stone-200 hover:border-stone-300'
                       }`}
                     >
                       <span>{employee.name}</span>
                       {newService.assignedEmployees.includes(employee.id) && (
-                        <Check className="h-5 w-5 text-primary" />
+                        <Check className="h-5 w-5 text-stone-600" />
                       )}
                     </button>
                   </div>
@@ -503,7 +731,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
               value={editService.description}
               onChange={handleEditInputChange}
               rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+              className="mt-1 block w-full rounded-lg border-stone-300 focus:border-stone-400 focus:ring focus:ring-stone-300 focus:ring-opacity-50 font-light"
               placeholder="Enter service description"
             />
           </div>
@@ -526,13 +754,13 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
                       onClick={() => toggleEditEmployee(employee.id)}
                       className={`flex items-center justify-between w-full p-2 rounded-md border ${
                         editService.assignedEmployees.includes(employee.id)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 hover:border-primary/50'
+                          ? 'border-stone-300 bg-stone-50'
+                          : 'border-stone-200 hover:border-stone-300'
                       }`}
                     >
                       <span>{employee.name}</span>
                       {editService.assignedEmployees.includes(employee.id) && (
-                        <Check className="h-5 w-5 text-primary" />
+                        <Check className="h-5 w-5 text-stone-600" />
                       )}
                     </button>
                   </div>
@@ -546,34 +774,83 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
               Cancel
             </Button>
             <Button onClick={updateServiceData} disabled={!editService.name || !editService.duration || !editService.price}>
-              Save
+              Update Service
             </Button>
           </div>
         </div>
       </Modal>
       
-      {/* Add from suggested modal */}
+      {/* Suggested services modal */}
       <Modal
         isOpen={isSuggestedModalOpen}
         onClose={() => setIsSuggestedModalOpen(false)}
         title="Add from Suggested Services"
+        size="lg"
         closable={true}
       >
         <div className="space-y-4">
-          {suggestedServices.map((service, index) => (
-            <div
-              key={index}
-              className="border rounded-lg p-4 hover:border-primary cursor-pointer transition-colors"
-              onClick={() => addSuggestedService(service)}
-            >
-              <h3 className="font-medium text-gray-900">{service.name}</h3>
-              <p className="text-sm text-gray-500 mt-1">{service.description}</p>
-              <div className="mt-2 flex items-center space-x-4">
-                <span className="text-sm text-gray-600">{service.duration} minutes</span>
-                <span className="text-sm font-medium text-gray-900">{service.price} JOD</span>
+          <p className="text-sm text-gray-600">
+            Choose from our curated list of popular salon services to quickly add to your offerings.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+            {suggestedServices.map((service, index) => (
+              <div key={index} className="border border-stone-200 rounded-lg p-4 hover:border-stone-300 transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-medium text-stone-900">{service.name}</h4>
+                  <span className="text-sm font-medium text-stone-600">{service.price} JOD</span>
+                </div>
+                <p className="text-sm text-stone-600 mb-2">{service.description}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-stone-500">{service.duration} minutes</span>
+                  <Button
+                    size="sm"
+                    onClick={() => addSuggestedService(service)}
+                    disabled={services.some(s => s.name === service.name)}
+                  >
+                    {services.some(s => s.name === service.name) ? 'Added' : 'Add Service'}
+                  </Button>
+                </div>
               </div>
+            ))}
+          </div>
+          
+          <div className="mt-6 flex justify-end">
+            <Button variant="outline" onClick={() => setIsSuggestedModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
+      {/* Delete confirmation modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        title="Delete Service"
+        closable={true}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3 p-4 bg-red-50 border border-red-200/60 rounded-lg">
+            <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-medium text-red-800">
+                Are you sure you want to delete this service?
+              </h4>
+              <p className="text-sm text-red-700 mt-1">
+                This action cannot be undone. The service "{serviceToDelete?.name}" will be permanently removed.
+              </p>
             </div>
-          ))}
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <Button variant="outline" onClick={closeDeleteModal}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete}>
+              Delete Service
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

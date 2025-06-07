@@ -1,163 +1,256 @@
 import { Link } from 'react-router-dom';
-import { CalendarCheck, Settings, Shield, Smartphone, Clock, Palette, Phone } from 'lucide-react';
+import { CalendarCheck, Settings, Shield, Smartphone, Clock, Palette, Phone, Star, Users, CheckCircle, ArrowRight, Sparkles, Zap, Heart, Award, TrendingUp, Globe } from 'lucide-react';
 import Navbar from '../components/common/Navbar';
 import Button from '../components/common/Button';
 import Footer from '../components/common/Footer';
+import Logo from '../components/common/Logo';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       <Navbar transparent />
       
       {/* Hero Section */}
-      <section className="pt-32 pb-24 bg-gradient-to-br from-primary to-primary-dark text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div className="text-center md:text-left">
-              <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                Smart Booking for Nail Salons in Jordan
-              </h1>
-              <p className="mt-4 text-lg text-primary-light">
-                Streamline your salon operations with online bookings, 
-                appointment management, and powerful admin tools.
-              </p>
-              <div className="mt-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center md:justify-start">
-                <Button 
-                  variant="secondary" 
-                  size="lg"
-                  onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  Contact Sales
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  Learn More
-                </Button>
-              </div>
-            </div>
-            <div className="hidden md:block">
-              <img 
-                src="https://images.pexels.com/photos/939836/pexels-photo-939836.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
-                alt="Nail salon services" 
-                className="rounded-lg shadow-2xl"
-              />
-            </div>
-          </div>
+      <section className="relative pt-24 pb-16 overflow-hidden">
+        {/* Subtle Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-stone-100/40 rounded-full blur-3xl transform -translate-y-1/2"></div>
+          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-slate-100/40 rounded-full blur-3xl transform translate-y-1/2"></div>
         </div>
-      </section>
-      
-      {/* What We Do Section */}
-      <section id="features" className="py-16 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">What We Do</h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-              Gentivo provides an all-in-one solution for nail salons to manage bookings,
-              clients, and grow their business.
+        
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="max-w-4xl mx-auto text-center">
+            {/* Gentivo Logo */}
+            <div className="mb-8">
+              <div className="flex justify-center mb-6">
+                <Logo width={120} height={120} />
+              </div>
+            </div>
+            
+            {/* Trust Badge */}
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-stone-50 border border-stone-200/60 text-stone-600 text-sm font-medium mb-12">
+              <Award className="w-4 h-4 mr-2 text-stone-500" />
+              Trusted by the Premium Salons in Jordan
+            </div>
+            
+            {/* Main Heading */}
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light text-stone-900 leading-tight mb-8">
+              Effortless Booking
+              <span className="block font-normal text-stone-700">
+                for Modern Salons
+              </span>
+            </h1>
+            
+            <p className="text-lg sm:text-xl text-stone-600 max-w-2xl mx-auto mb-12 leading-relaxed font-light">
+              Streamline your salon operations with intelligent booking management. 
+              Designed for professionals who value <em className="text-stone-800 font-medium not-italic">simplicity</em> and <em className="text-stone-800 font-medium not-italic">elegance</em>.
             </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white p-6 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
-              <div className="p-2 bg-primary/10 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                <CalendarCheck className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Online Bookings</h3>
-              <p className="text-gray-600">
-                Allow clients to book appointments 24/7 through a customized booking page.
-              </p>
-            </div>
             
-            <div className="bg-white p-6 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
-              <div className="p-2 bg-primary/10 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                <Settings className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Appointment Management</h3>
-              <p className="text-gray-600">
-                Efficiently manage all your appointments with our intuitive admin dashboard.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
-              <div className="p-2 bg-primary/10 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Salon Dashboard</h3>
-              <p className="text-gray-600">
-                Comprehensive admin panel to manage appointments, services, and clients.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
-              <div className="p-2 bg-primary/10 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                <Palette className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Custom Branding</h3>
-              <p className="text-gray-600">
-                Personalize your booking experience with your salon's unique branding and colors.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Why Us Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Why Choose Gentivo</h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-              Designed specifically for nail salons in Jordan, with features that matter to you.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex flex-col items-center text-center p-6">
-              <Smartphone className="h-12 w-12 text-primary mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Mobile-Friendly Design</h3>
-              <p className="text-gray-600">
-                Beautiful, responsive interfaces that work perfectly on all devices, especially mobile.
-              </p>
-            </div>
-            
-            <div className="flex flex-col items-center text-center p-6">
-              <Clock className="h-12 w-12 text-primary mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Real-Time Availability</h3>
-              <p className="text-gray-600">
-                Show real-time availability to prevent double bookings and optimize your schedule.
-              </p>
-            </div>
-            
-            <div className="flex flex-col items-center text-center p-6">
-              <Shield className="h-12 w-12 text-primary mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure & Reliable</h3>
-              <p className="text-gray-600">
-                Built with security in mind, ensuring your salon and customer data is always protected.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Contact Sales Section */}
-      <section id="contact" className="py-16 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Contact Sales</h2>
-            <p className="mt-4 text-xl text-gray-600">
-              Get in touch with our team to learn how Gentivo can help your salon grow.
-            </p>
-            <div className="mt-8">
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <a 
                 href="tel:0798104962"
-                className="inline-flex items-center px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                className="group px-8 py-4 bg-stone-900 text-white rounded-lg font-medium text-base hover:bg-stone-800 transition-all duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-2"
+                aria-label="Call Gentivo sales team"
               >
-                <Phone className="h-5 w-5 mr-2" />
-                Call Us: 079 810 4962
+                <Phone className="w-4 h-4 mr-3" />
+                079 810 4962
               </a>
+              
+              <div className="text-center">
+                <div className="flex items-center justify-center text-stone-600 text-sm font-medium mb-2">
+                  <CheckCircle className="w-4 h-4 mr-2 text-emerald-600" />
+                  Free consultation call
+                </div>
+                <div className="text-stone-500 text-xs font-light">
+                  We'll walk you through setup and answer your questions
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-stone-50/30">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-light text-stone-900 mb-6">
+              Everything You Need,
+              <span className="block font-normal text-stone-700">Nothing You Don't</span>
+            </h2>
+            <p className="text-lg text-stone-600 font-light leading-relaxed">
+              Carefully crafted features that salon professionals actually use, 
+              designed with your workflow in mind.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            {[
+              {
+                icon: CalendarCheck,
+                title: "Smart Scheduling",
+                description: "Intelligent booking system with real-time availability and conflict prevention."
+              },
+              {
+                icon: Smartphone,
+                title: "Mobile Excellence",
+                description: "Flawless experience across all devices, optimized for the way your clients browse."
+              },
+              {
+                icon: Settings,
+                title: "Intuitive Dashboard",
+                description: "Clean, organized admin panel that makes management feel effortless."
+              },
+              {
+                icon: Palette,
+                title: "Brand Integration",
+                description: "Seamlessly incorporate your salon's unique style and personality."
+              }
+            ].map((feature, index) => (
+              <div 
+                key={index}
+                className="group bg-white rounded-xl p-8 hover:shadow-lg transition-all duration-300 border border-stone-200/40 hover:border-stone-300/60"
+              >
+                <div className="w-12 h-12 bg-stone-100 rounded-lg flex items-center justify-center mb-6 group-hover:bg-stone-200 transition-colors duration-200">
+                  <feature.icon className="w-6 h-6 text-stone-600" />
+                </div>
+                <h3 className="text-lg font-medium text-stone-900 mb-3">{feature.title}</h3>
+                <p className="text-stone-600 text-sm leading-relaxed font-light">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      
+      {/* Benefits Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-light text-stone-900 mb-6">
+                Why Salon Owners
+                <span className="block font-normal text-stone-700">Choose Gentivo</span>
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+              {[
+                {
+                  icon: TrendingUp,
+                  title: "Increased Bookings",
+                  description: "Average 35% increase in appointments within the first month of implementation.",
+                  metric: "+35%"
+                },
+                {
+                  icon: Clock,
+                  title: "Time Savings",
+                  description: "Reduce administrative tasks by up to 4 hours per week with automated workflows.",
+                  metric: "4hrs/week"
+                },
+                {
+                  icon: Globe,
+                  title: "24/7 Availability",
+                  description: "Capture bookings around the clock, even when your salon is closed.",
+                  metric: "Always On"
+                }
+              ].map((benefit, index) => (
+                <div key={index} className="text-center group">
+                  <div className="relative mb-8">
+                    <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center group-hover:bg-stone-200 transition-colors duration-200">
+                      <benefit.icon className="w-8 h-8 text-stone-600" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 bg-stone-900 text-white px-3 py-1 rounded-full text-xs font-medium">
+                      {benefit.metric}
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-medium text-stone-900 mb-4">{benefit.title}</h3>
+                  <p className="text-stone-600 leading-relaxed font-light max-w-sm mx-auto">{benefit.description}</p>
+                </div>
+              ))}
+            </div>
+            
+            {/* Setup & Support Benefits */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-16 max-w-4xl mx-auto">
+              {[
+                {
+                  icon: Shield,
+                  title: "15-min Setup & No Fees",
+                  description: "Quick guided setup with transparent pricing. What you see is what you pay - no hidden costs.",
+                  metric: "No setup fees"
+                },
+                {
+                  icon: Users,
+                  title: "Personal Support",
+                  description: "Real humans, real help, real fast. We're here whenever you need us, day or night.",
+                  metric: "Real humans"
+                }
+              ].map((benefit, index) => (
+                <div key={index} className="text-center group">
+                  <div className="relative mb-8">
+                    <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center group-hover:bg-stone-200 transition-colors duration-200">
+                      <benefit.icon className="w-8 h-8 text-stone-600" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 bg-stone-900 text-white px-3 py-1 rounded-full text-xs font-medium">
+                      {benefit.metric}
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-medium text-stone-900 mb-4">{benefit.title}</h3>
+                  <p className="text-stone-600 leading-relaxed font-light max-w-sm mx-auto">{benefit.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* CTA Section */}
+      <section id="contact" className="py-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-3xl sm:text-4xl font-light text-stone-900 mb-6">
+              Ready to Get Started?
+            </h2>
+            <p className="text-lg text-stone-600 mb-12 font-light leading-relaxed">
+              Join successful salons across Jordan. 
+              Experience the difference professional booking management makes.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+              <a 
+                href="tel:0798104962"
+                className="group px-8 py-4 bg-stone-900 text-white rounded-lg font-medium text-base hover:bg-stone-800 transition-all duration-200 flex items-center focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-2"
+                aria-label="Call Gentivo sales team"
+              >
+                <Phone className="w-4 h-4 mr-3" />
+                079 810 4962
+              </a>
+              
+              <div className="text-center">
+                <div className="flex items-center justify-center text-stone-600 text-sm font-medium mb-2">
+                  <CheckCircle className="w-4 h-4 mr-2 text-emerald-600" />
+                  Free consultation call
+                </div>
+                <div className="text-stone-500 text-xs font-light">
+                  We'll walk you through setup and answer your questions
+                </div>
+              </div>
+            </div>
+            
+            {/* Subtle Trust Indicators */}
+            <div className="flex flex-wrap justify-center items-center gap-6 text-stone-400 text-xs font-light border-t border-stone-200/40 pt-6">
+              <div className="flex items-center">
+                <Shield className="w-3 h-3 mr-1.5" />
+                Secure & compliant
+              </div>
+              <div className="flex items-center">
+                <Users className="w-3 h-3 mr-1.5" />
+                Used by salons nationwide
+              </div>
+              <div className="flex items-center">
+                <CheckCircle className="w-3 h-3 mr-1.5" />
+                30 day free trial
+              </div>
             </div>
           </div>
         </div>

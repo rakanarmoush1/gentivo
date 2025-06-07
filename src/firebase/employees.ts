@@ -103,4 +103,114 @@ export async function deleteEmployee(salonId: string, employeeId: string): Promi
     console.error('Error deleting employee:', error);
     throw error;
   }
+}
+
+// Helper function to add service to employee's service list
+export async function addServiceToEmployee(
+  salonId: string, 
+  employeeId: string, 
+  serviceName: string
+): Promise<void> {
+  try {
+    const employee = await getEmployee(salonId, employeeId);
+    if (!employee) return;
+    
+    if (!employee.services.includes(serviceName)) {
+      const updatedServices = [...employee.services, serviceName];
+      await updateEmployee(salonId, employeeId, { services: updatedServices });
+    }
+  } catch (error) {
+    console.error('Error adding service to employee:', error);
+    throw error;
+  }
+}
+
+// Helper function to remove service from employee's service list
+export async function removeServiceFromEmployee(
+  salonId: string, 
+  employeeId: string, 
+  serviceName: string
+): Promise<void> {
+  try {
+    const employee = await getEmployee(salonId, employeeId);
+    if (!employee) return;
+    
+    const updatedServices = employee.services.filter(service => service !== serviceName);
+    await updateEmployee(salonId, employeeId, { services: updatedServices });
+  } catch (error) {
+    console.error('Error removing service from employee:', error);
+    throw error;
+  }
+}
+
+// Helper function to sync service assignments with employee records
+export async function syncServiceWithEmployees(
+  salonId: string,
+  serviceName: string,
+  assignedEmployeeIds: string[],
+  previouslyAssignedEmployeeIds: string[] = []
+): Promise<void> {
+  try {
+    // Add service to newly assigned employees
+    const employeesToAdd = assignedEmployeeIds.filter(id => !previouslyAssignedEmployeeIds.includes(id));
+    const addPromises = employeesToAdd.map(employeeId => 
+      addServiceToEmployee(salonId, employeeId, serviceName)
+    );
+    
+    // Remove service from employees who are no longer assigned
+    const employeesToRemove = previouslyAssignedEmployeeIds.filter(id => !assignedEmployeeIds.includes(id));
+    const removePromises = employeesToRemove.map(employeeId => 
+      removeServiceFromEmployee(salonId, employeeId, serviceName)
+    );
+    
+    await Promise.all([...addPromises, ...removePromises]);
+  } catch (error) {
+    console.error('Error syncing service with employees:', error);
+    throw error;
+  }
+}
+
+// Helper function to remove a service from all employees when service is deleted
+export async function removeServiceFromAllEmployees(
+  salonId: string,
+  serviceName: string
+): Promise<void> {
+  try {
+    const employees = await getSalonEmployees(salonId);
+    const promises = employees
+      .filter(employee => employee.services.includes(serviceName))
+      .map(employee => removeServiceFromEmployee(salonId, employee.id, serviceName));
+    
+    await Promise.all(promises);
+  } catch (error) {
+    console.error('Error removing service from all employees:', error);
+    throw error;
+  }
+}
+
+// Helper function to update employee service names when service name changes
+export async function updateServiceNameForEmployees(
+  salonId: string,
+  oldServiceName: string,
+  newServiceName: string,
+  assignedEmployeeIds: string[]
+): Promise<void> {
+  try {
+    const promises = assignedEmployeeIds.map(async (employeeId) => {
+      const employee = await getEmployee(salonId, employeeId);
+      if (!employee) return;
+      
+      const serviceIndex = employee.services.indexOf(oldServiceName);
+      if (serviceIndex !== -1) {
+        const updatedServices = [...employee.services];
+        updatedServices[serviceIndex] = newServiceName;
+        await updateEmployee(salonId, employeeId, { services: updatedServices });
+      }
+    });
+    
+    await Promise.all(promises);
+  } catch (error) {
+    console.error('Error updating service name for employees:', error);
+    throw error;
+  }
 } 

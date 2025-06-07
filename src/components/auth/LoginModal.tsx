@@ -69,7 +69,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+          <div className="bg-red-50 border border-red-200/60 text-red-800 p-3 rounded-lg text-sm">
             {error}
           </div>
         )}

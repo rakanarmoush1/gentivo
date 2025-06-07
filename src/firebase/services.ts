@@ -21,7 +21,10 @@ export interface Service {
   price: number;
   description?: string;
   assignedEmployees?: string[]; // Add assigned employees
+  isActive?: boolean; // Service active/inactive status
+  displayOrder?: number; // Order for display/drag-and-drop
   createdAt: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 // Get all services for a salon

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Palette, Image as ImageIcon, Check, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { Upload, Palette, Image as ImageIcon, Check, Link as LinkIcon, AlertTriangle, Copy, Clock, Calendar } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import ImageUploader from '../../components/common/ImageUploader';
 import LoadingStatus from '../../components/common/LoadingStatus';
+import LoadingIndicator from '../../components/common/LoadingIndicator';
 import StorageDebugger from '../../components/admin/StorageDebugger';
 import FirebaseStorageStatus from '../../components/admin/FirebaseStorageStatus';
 import { getSalon, updateSalon, updateSalonMapping, slugifySalonName } from '../../firebase';
@@ -30,10 +31,17 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   const [loading, setLoading] = useState(true);
   const [savingChanges, setSavingChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [autoSavingField, setAutoSavingField] = useState<string>('');
   const [error, setError] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showLinkCopied, setShowLinkCopied] = useState(false);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  
+  // Bulk operations state
+  const [showBulkOperations, setShowBulkOperations] = useState(false);
+  const [bulkOpenTime, setBulkOpenTime] = useState('09:00');
+  const [bulkCloseTime, setBulkCloseTime] = useState('18:00');
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
   
   const [businessHours, setBusinessHours] = useState({
     monday: { open: '09:00', close: '18:00', isOpen: true },
@@ -66,6 +74,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     autoSaveTimeoutRef.current = setTimeout(async () => {
       try {
         setAutoSaving(true);
+        setAutoSavingField('salon-info');
         setError('');
         
         await updateSalon(salonId, {
@@ -88,6 +97,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         setError(`Auto-save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setAutoSaving(false);
+        setAutoSavingField('');
       }
     }, 1000); // 1 second debounce
 
@@ -112,6 +122,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     autoSaveTimeoutRef.current = setTimeout(async () => {
       try {
         setAutoSaving(true);
+        setAutoSavingField('business-hours');
         setError('');
         
         await updateSalon(salonId, {
@@ -123,6 +134,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         setError(`Auto-save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setAutoSaving(false);
+        setAutoSavingField('');
       }
     }, 1000); // 1 second debounce
 
@@ -375,6 +387,111 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     window.open(`/booking/${salonId}`, '_blank', 'noopener,noreferrer');
   };
   
+  // Bulk operations functions
+  const toggleDaySelection = (day: string) => {
+    setSelectedDays(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
+  };
+
+  const selectAllDays = () => {
+    const allDays = Object.keys(businessHours);
+    setSelectedDays(allDays);
+  };
+
+  const selectWeekdays = () => {
+    setSelectedDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
+  };
+
+  const selectWeekends = () => {
+    setSelectedDays(['saturday', 'sunday']);
+  };
+
+  const clearSelection = () => {
+    setSelectedDays([]);
+  };
+
+  const applyBulkHours = () => {
+    if (selectedDays.length === 0) return;
+
+    const updatedHours = { ...businessHours };
+    selectedDays.forEach(day => {
+      updatedHours[day as keyof typeof businessHours] = {
+        ...updatedHours[day as keyof typeof businessHours],
+        open: bulkOpenTime,
+        close: bulkCloseTime,
+        isOpen: true
+      };
+    });
+
+    setBusinessHours(updatedHours);
+    setSelectedDays([]);
+    setShowBulkOperations(false);
+  };
+
+  const applyBulkClosed = () => {
+    if (selectedDays.length === 0) return;
+
+    const updatedHours = { ...businessHours };
+    selectedDays.forEach(day => {
+      updatedHours[day as keyof typeof businessHours] = {
+        ...updatedHours[day as keyof typeof businessHours],
+        isOpen: false
+      };
+    });
+
+    setBusinessHours(updatedHours);
+    setSelectedDays([]);
+    setShowBulkOperations(false);
+  };
+
+  // Quick presets
+  const applyPreset = (preset: string) => {
+    let newHours;
+    
+    switch (preset) {
+      case 'standard':
+        newHours = {
+          monday: { open: '09:00', close: '18:00', isOpen: true },
+          tuesday: { open: '09:00', close: '18:00', isOpen: true },
+          wednesday: { open: '09:00', close: '18:00', isOpen: true },
+          thursday: { open: '09:00', close: '18:00', isOpen: true },
+          friday: { open: '09:00', close: '18:00', isOpen: true },
+          saturday: { open: '09:00', close: '17:00', isOpen: true },
+          sunday: { open: '10:00', close: '16:00', isOpen: false }
+        };
+        break;
+      case 'evening':
+        newHours = {
+          monday: { open: '12:00', close: '21:00', isOpen: true },
+          tuesday: { open: '12:00', close: '21:00', isOpen: true },
+          wednesday: { open: '12:00', close: '21:00', isOpen: true },
+          thursday: { open: '12:00', close: '21:00', isOpen: true },
+          friday: { open: '12:00', close: '21:00', isOpen: true },
+          saturday: { open: '10:00', close: '19:00', isOpen: true },
+          sunday: { open: '12:00', close: '18:00', isOpen: true }
+        };
+        break;
+      case 'weekend':
+        newHours = {
+          monday: { open: '09:00', close: '18:00', isOpen: false },
+          tuesday: { open: '09:00', close: '18:00', isOpen: false },
+          wednesday: { open: '09:00', close: '18:00', isOpen: false },
+          thursday: { open: '09:00', close: '18:00', isOpen: false },
+          friday: { open: '09:00', close: '18:00', isOpen: false },
+          saturday: { open: '09:00', close: '18:00', isOpen: true },
+          sunday: { open: '10:00', close: '17:00', isOpen: true }
+        };
+        break;
+      default:
+        return;
+    }
+    
+    setBusinessHours(newHours);
+  };
+  
   if (loading) {
     return (
       <div className="py-12 max-w-3xl mx-auto">
@@ -430,13 +547,6 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         </div>
       )}
       
-      {autoSaving && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 mb-6 flex items-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-          <span>Auto-saving changes...</span>
-        </div>
-      )}
-      
       {error && error.includes('upload') && (
         <div className="mt-2">
           <Button 
@@ -456,7 +566,14 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {/* Salon Information */}
         <div className="md:col-span-3 bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-4">Salon Information</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Salon Information</h2>
+            <LoadingIndicator 
+              isLoading={autoSaving && autoSavingField === 'salon-info'} 
+              text="Saving..." 
+              size="sm"
+            />
+          </div>
           
           <div className="space-y-4">
             <Input
@@ -647,10 +764,159 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         </div>
       </div>
       
-      {/* Business Hours - Full Width Section */}
+      {/* Business Hours - Enhanced Section */}
       <div className="mt-6">
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-4">Business Hours</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Business Hours</h2>
+            <div className="flex items-center space-x-3">
+              <LoadingIndicator 
+                isLoading={autoSaving && autoSavingField === 'business-hours'} 
+                text="Saving hours..." 
+                size="sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBulkOperations(!showBulkOperations)}
+              >
+                <Clock className="h-4 w-4 mr-1" />
+                Bulk Edit
+              </Button>
+            </div>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Presets</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => applyPreset('standard')}
+              >
+                Standard (9-6, Sun Closed)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => applyPreset('evening')}
+              >
+                Evening Hours (12-9)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => applyPreset('weekend')}
+              >
+                Weekend Only
+              </Button>
+            </div>
+          </div>
+
+          {/* Bulk Operations Panel */}
+          {showBulkOperations && (
+            <div className="mb-6 p-4 border border-blue-200 bg-blue-50 rounded-lg">
+              <h3 className="text-sm font-medium text-blue-900 mb-3">Bulk Operations</h3>
+              
+              {/* Day Selection */}
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Button variant="outline" size="sm" onClick={selectAllDays}>
+                    All Days
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={selectWeekdays}>
+                    Weekdays
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={selectWeekends}>
+                    Weekends
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={clearSelection}>
+                    Clear
+                  </Button>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(businessHours).map(day => (
+                    <button
+                      key={day}
+                      onClick={() => toggleDaySelection(day)}
+                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                        selectedDays.includes(day)
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      }`}
+                    >
+                      {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Time Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Opening Time
+                  </label>
+                  <select
+                    value={bulkOpenTime}
+                    onChange={(e) => setBulkOpenTime(e.target.value)}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                  >
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <option key={i} value={`${i.toString().padStart(2, '0')}:00`}>
+                        {`${i.toString().padStart(2, '0')}:00`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Closing Time
+                  </label>
+                  <select
+                    value={bulkCloseTime}
+                    onChange={(e) => setBulkCloseTime(e.target.value)}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                  >
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <option key={i} value={`${i.toString().padStart(2, '0')}:00`}>
+                        {`${i.toString().padStart(2, '0')}:00`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    <Button
+                      size="sm"
+                      onClick={applyBulkHours}
+                      disabled={selectedDays.length === 0}
+                    >
+                      Apply Hours
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={applyBulkClosed}
+                      disabled={selectedDays.length === 0}
+                    >
+                      Set Closed
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {selectedDays.length > 0 && (
+                <p className="text-xs text-blue-700">
+                  {selectedDays.length} day(s) selected: {selectedDays.join(', ')}
+                </p>
+              )}
+            </div>
+          )}
           
           <div className="max-w-2xl">
             <div className="space-y-3">
