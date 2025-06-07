@@ -34,6 +34,7 @@ export default function BookingPage() {
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [bookingState, setBookingState] = useState<BookingState>({
     selectedService: null,
@@ -276,6 +277,11 @@ export default function BookingPage() {
     setIsTransitioning(true);
     setCurrentStep(step);
     
+    // Scroll to top when navigating to a new step
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
     // Announce step change for screen readers
     const announcement = direction === 'forward' 
       ? `Moving to ${steps.find(s => s.key === step)?.title}` 
@@ -330,7 +336,17 @@ export default function BookingPage() {
       selectedTime: time
     }));
     
-    handleAutoProgression('staff');
+    // Check if staff selection should be skipped based on salon settings
+    if (salon?.hideStaffSelection) {
+      // Skip staff selection and go directly to info
+      setBookingState(prev => ({
+        ...prev,
+        selectedStaff: 'any' // Default to any available staff
+      }));
+      handleAutoProgression('info');
+    } else {
+      handleAutoProgression('staff');
+    }
   };
 
   const handleStaffSelect = (staffId: string) => {
@@ -364,7 +380,11 @@ export default function BookingPage() {
   };
 
   const confirmBooking = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    
     try {
+      setIsSubmitting(true);
+      
       if (!salonId || !bookingState.selectedService || !bookingState.selectedTime || !bookingState.selectedDate) {
         console.error('Missing booking information');
         return;
@@ -398,6 +418,8 @@ export default function BookingPage() {
     } catch (error) {
       console.error('Error creating booking:', error);
       alert('Failed to create booking. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -509,7 +531,6 @@ export default function BookingPage() {
               
               <div className="text-center">
                 <h1 className="text-lg font-semibold text-gray-900">{currentStepData?.title}</h1>
-                <p className="text-sm text-gray-500">Step {stepNumber} of {totalSteps}</p>
               </div>
               
               <div className="w-10" /> {/* Spacer for centering */}
@@ -837,7 +858,7 @@ export default function BookingPage() {
                     <p className="text-gray-600">Please review your appointment details</p>
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl p-6 mb-8">
+                  <div className="bg-gray-50 rounded-xl p-6 mb-8 mx-auto max-w-sm">
                     <div className="space-y-4">
                       <div>
                         <h3 className="text-sm font-medium text-gray-500 mb-1">Service</h3>
@@ -873,7 +894,7 @@ export default function BookingPage() {
                   </div>
 
                   <div 
-                    className="p-4 rounded-xl mb-8"
+                    className="p-4 rounded-xl mb-8 mx-auto max-w-sm"
                     style={{ backgroundColor: colors.primaryColorLight }}
                   >
                     <p className="text-sm text-gray-700">
@@ -882,13 +903,17 @@ export default function BookingPage() {
                     </p>
                   </div>
 
-                  <Button
-                    onClick={confirmBooking}
-                    className="w-full h-12 text-lg"
-                    style={{ backgroundColor: colors.primaryColor }}
-                  >
-                    Confirm Booking
-                  </Button>
+                  <div className="max-w-sm mx-auto">
+                    <Button
+                      onClick={confirmBooking}
+                      disabled={isSubmitting}
+                      loading={isSubmitting}
+                      className="w-full h-12 text-lg"
+                      style={{ backgroundColor: colors.primaryColor }}
+                    >
+                      {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -909,13 +934,14 @@ export default function BookingPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
+                  className="max-w-md mx-auto"
                 >
                   <h2 className="text-3xl font-bold text-gray-900 mb-4">Booking Confirmed!</h2>
                   <p className="text-gray-600 mb-8">
                     Your appointment has been booked successfully. We've sent a confirmation to your phone.
                   </p>
                   
-                  <div className="bg-gray-50 rounded-xl p-6 mb-8 text-left max-w-md">
+                  <div className="bg-gray-50 rounded-xl p-6 mb-8 text-left">
                     <div className="space-y-3">
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Service</h3>
@@ -937,7 +963,7 @@ export default function BookingPage() {
                   
                   <Button 
                     onClick={() => navigate('/')}
-                    className="w-full max-w-md h-12 text-lg"
+                    className="w-full h-12 text-lg"
                     style={{ backgroundColor: colors.primaryColor }}
                   >
                     Return to Home

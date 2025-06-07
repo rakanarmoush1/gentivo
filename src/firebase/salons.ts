@@ -31,6 +31,7 @@ export interface Salon {
   createdAt: Timestamp;
   updatedAt?: Timestamp;
   businessHours?: Record<string, { open: string; close: string; isOpen: boolean }>;
+  hideStaffSelection?: boolean;
 }
 
 // Get a salon by ID

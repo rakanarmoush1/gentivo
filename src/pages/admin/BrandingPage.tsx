@@ -23,14 +23,17 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
     address: '',
     phone: '',
     brandPrimaryColor: '#4f46e5',
-    brandSecondaryColor: '#f97316'
+    brandSecondaryColor: '#f97316',
+    hideStaffSelection: false
   });
   
   const [loading, setLoading] = useState(true);
   const [savingChanges, setSavingChanges] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const [error, setError] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showLinkCopied, setShowLinkCopied] = useState(false);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
   
   const [businessHours, setBusinessHours] = useState({
     monday: { open: '09:00', close: '18:00', isOpen: true },
@@ -47,6 +50,90 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   // Add a new state for tracking loading phase
   const [loadingPhase, setLoadingPhase] = useState<string>('initializing');
   
+  // Auto-save timeout ref
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save effect for salon info
+  useEffect(() => {
+    if (!hasLoadedInitialData || !salonId) return;
+
+    // Clear any existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set a new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setAutoSaving(true);
+        setError('');
+        
+        await updateSalon(salonId, {
+          name: salonInfo.name,
+          logoUrl: salonInfo.logoUrl,
+          address: salonInfo.address,
+          phone: salonInfo.phone,
+          brandPrimaryColor: salonInfo.brandPrimaryColor,
+          brandSecondaryColor: salonInfo.brandSecondaryColor,
+          hideStaffSelection: salonInfo.hideStaffSelection
+        });
+
+        // Update salon name mapping if name changed
+        if (salonInfo.name) {
+          await updateSalonMapping(salonInfo.name, salonId);
+        }
+        
+      } catch (error) {
+        console.error('Auto-save error:', error);
+        setError(`Auto-save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 1000); // 1 second debounce
+
+    // Cleanup function
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [salonInfo, salonId, hasLoadedInitialData]);
+
+  // Auto-save effect for business hours
+  useEffect(() => {
+    if (!hasLoadedInitialData || !salonId) return;
+
+    // Clear any existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set a new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setAutoSaving(true);
+        setError('');
+        
+        await updateSalon(salonId, {
+          businessHours: businessHours
+        });
+        
+      } catch (error) {
+        console.error('Auto-save error:', error);
+        setError(`Auto-save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 1000); // 1 second debounce
+
+    // Cleanup function
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [businessHours, salonId, hasLoadedInitialData]);
+  
   useEffect(() => {
     if (salonId) {
       loadSalonData();
@@ -58,6 +145,7 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       setLoading(true);
       setError('');
       setLoadingPhase('initializing');
+      setHasLoadedInitialData(false);
       
       // Check Firestore connection first (this is critical)
       setLoadingPhase('checking database connection');
@@ -100,8 +188,17 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         address: salon.address || '',
         phone: salon.phone || '',
         brandPrimaryColor: salon.brandPrimaryColor || '#4f46e5',
-        brandSecondaryColor: salon.brandSecondaryColor || '#f97316'
+        brandSecondaryColor: salon.brandSecondaryColor || '#f97316',
+        hideStaffSelection: salon.hideStaffSelection || false
       });
+      
+      // Load business hours if they exist
+      if (salon.businessHours) {
+        setBusinessHours(prev => ({
+          ...prev,
+          ...salon.businessHours
+        }));
+      }
       
       // Generate a proper URL-friendly name for the salon domain
       setLoadingPhase('preparing salon information');
@@ -121,6 +218,9 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         }
       });
       
+      // Mark that initial data has been loaded
+      setHasLoadedInitialData(true);
+      
     } catch (error) {
       console.error('BrandingPage: Error loading salon data:', error);
       setError('Failed to load salon data. Please refresh the page and try again.');
@@ -131,10 +231,12 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
   }
   
   const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
     setSalonInfo({
       ...salonInfo,
-      [name]: value
+      [name]: newValue
     });
     
     // Update booking URL when salon name changes
@@ -230,6 +332,11 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
       setSavingChanges(true);
       setError('');
       
+      // Clear any pending auto-save
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
       // Update salon info in Firestore
       await updateSalon(salonId, {
         name: salonInfo.name,
@@ -238,7 +345,8 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         phone: salonInfo.phone,
         brandPrimaryColor: salonInfo.brandPrimaryColor,
         brandSecondaryColor: salonInfo.brandSecondaryColor,
-        businessHours: businessHours
+        businessHours: businessHours,
+        hideStaffSelection: salonInfo.hideStaffSelection
       });
       
       // Update the salon name mapping
@@ -319,6 +427,13 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6 flex items-center">
           <Check className="h-5 w-5 mr-2 text-green-600" />
           <span>Your changes have been saved successfully!</span>
+        </div>
+      )}
+      
+      {autoSaving && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 mb-6 flex items-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+          <span>Auto-saving changes...</span>
         </div>
       )}
       
@@ -421,6 +536,29 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
                     onChange={handleInfoChange}
                   />
                 </div>
+              </div>
+            </div>
+            
+            {/* Booking Options */}
+            <div className="pt-4 border-t">
+              <h3 className="text-md font-medium text-gray-900 mb-3">Booking Options</h3>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="hideStaffSelection"
+                    id="hideStaffSelection"
+                    checked={salonInfo.hideStaffSelection}
+                    onChange={handleInfoChange}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <label htmlFor="hideStaffSelection" className="ml-2 block text-sm text-gray-700">
+                    Hide staff selection step in booking flow
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 ml-6">
+                  When enabled, customers will not be able to choose a specific staff member and will be automatically assigned to any available staff.
+                </p>
               </div>
             </div>
           </div>
@@ -561,20 +699,28 @@ export default function BrandingPage({ salonId }: BrandingPageProps) {
         </div>
       </div>
       
-      <div className="mt-6 flex justify-end">
-        <Button 
-          variant="outline" 
-          className="mr-3"
-          onClick={loadSalonData}
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={saveChanges}
-          loading={savingChanges}
-        >
-          Save Changes
-        </Button>
+      <div className="mt-6 flex justify-between items-center">
+        <div className="text-sm text-gray-500">
+          <span className="flex items-center">
+            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+            Auto-save enabled - changes are saved automatically
+          </span>
+        </div>
+        <div className="flex space-x-3">
+          <Button 
+            variant="outline" 
+            onClick={loadSalonData}
+          >
+            Reset Changes
+          </Button>
+          <Button 
+            onClick={saveChanges}
+            loading={savingChanges}
+            disabled={autoSaving}
+          >
+            Save Now
+          </Button>
+        </div>
       </div>
     </div>
   );

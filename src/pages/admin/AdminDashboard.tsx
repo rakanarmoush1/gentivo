@@ -13,12 +13,13 @@ import EmployeesPage from './EmployeesPage';
 import MessageTemplatesPage from './MessageTemplatesPage';
 import SettingsPage from './SettingsPage';
 import { getSalonId } from '../../utils/getSalonId';
-import { getUserSalons, updateSalon } from '../../firebase';
+import { getUserSalons, updateSalon, getSalon, type Salon } from '../../firebase';
 
 export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userSalons, setUserSalons] = useState<{id: string, name: string}[]>([]);
   const [selectedSalonId, setSelectedSalonId] = useState<string>('');
+  const [currentSalon, setCurrentSalon] = useState<Salon | null>(null);
   const { currentUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -37,6 +38,12 @@ export default function AdminDashboard() {
       loadUserSalons();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedSalonId) {
+      loadCurrentSalon();
+    }
+  }, [selectedSalonId]);
   
   async function loadUserSalons() {
     try {
@@ -57,6 +64,17 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error loading user salons:', error);
+    }
+  }
+
+  async function loadCurrentSalon() {
+    try {
+      if (!selectedSalonId) return;
+      
+      const salon = await getSalon(selectedSalonId);
+      setCurrentSalon(salon);
+    } catch (error) {
+      console.error('Error loading current salon:', error);
     }
   }
   
@@ -80,6 +98,35 @@ export default function AdminDashboard() {
     { name: 'Settings', path: '/admin/settings', icon: SettingsIcon },
   ];
 
+  const renderSalonBranding = (size: 'small' | 'large' = 'small') => {
+    const logoSize = size === 'large' ? 32 : 24;
+    const textSize = size === 'large' ? 'text-xl' : 'text-lg';
+    
+    return (
+      <div className="flex items-center">
+        {currentSalon?.logoUrl ? (
+          <img 
+            src={currentSalon.logoUrl} 
+            alt={`${currentSalon.name} logo`}
+            className={`${size === 'large' ? 'w-8 h-8' : 'w-6 h-6'} rounded-full object-cover`}
+          />
+        ) : (
+          <div 
+            className={`${size === 'large' ? 'w-8 h-8' : 'w-6 h-6'} rounded-full flex items-center justify-center`}
+            style={{ backgroundColor: currentSalon?.brandPrimaryColor || '#4f46e5' }}
+          >
+            <span className="text-white font-bold text-sm">
+              {currentSalon?.name?.substring(0, 2).toUpperCase() || 'SA'}
+            </span>
+          </div>
+        )}
+        <span className={`ml-2 ${textSize} font-bold`}>
+          {currentSalon?.name || 'Your Salon'}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile sidebar toggle */}
@@ -91,9 +138,8 @@ export default function AdminDashboard() {
           >
             {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
-          <div className="ml-4 flex items-center">
-            <Logo width={24} height={24} />
-            <span className="ml-2 text-lg font-bold">Gentivo</span>
+          <div className="ml-4">
+            {renderSalonBranding('small')}
           </div>
         </div>
       </div>
@@ -105,10 +151,7 @@ export default function AdminDashboard() {
         <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
           <div className="flex-1 overflow-y-auto pt-16 pb-4">
             <div className="flex-shrink-0 flex items-center px-6 mb-6">
-              <Link to="/" className="flex items-center">
-                <Logo width={32} height={32} />
-                <span className="ml-2 text-xl font-bold">Gentivo</span>
-              </Link>
+              {renderSalonBranding('large')}
             </div>
             
             <nav className="mt-5 px-3 space-y-1">
@@ -165,10 +208,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col w-64">
           <div className="flex flex-col flex-grow h-0 border-r border-gray-200 pt-6 pb-4 bg-white overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-6 mb-6">
-              <Link to="/" className="flex items-center">
-                <Logo width={32} height={32} />
-                <span className="ml-2 text-xl font-bold">Gentivo</span>
-              </Link>
+              {renderSalonBranding('large')}
             </div>
             
             <nav className="mt-5 flex-1 px-3 space-y-1">

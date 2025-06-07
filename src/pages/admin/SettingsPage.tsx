@@ -2,11 +2,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import ChangePasswordForm from '../../components/admin/ChangePasswordForm';
 import DeleteAccountButton from '../../components/admin/DeleteAccountButton';
 
+interface SettingsPageProps {
+  salonId: string;
+}
+
 /**
  * Settings page that allows users to manage their account settings
  * Including changing password and deleting account
  */
-export default function SettingsPage() {
+export default function SettingsPage({ salonId }: SettingsPageProps) {
   const { currentUser } = useAuth();
 
   return (
@@ -25,8 +29,8 @@ export default function SettingsPage() {
           <div>
             <p className="text-sm text-gray-500 mb-1">Account Created</p>
             <p className="font-medium">
-              {currentUser?.metadata?.creationTime ? 
-                new Date(currentUser.metadata.creationTime).toLocaleDateString() : 
+              {(currentUser as any)?.metadata?.creationTime ? 
+                new Date((currentUser as any).metadata.creationTime).toLocaleDateString() : 
                 'Not available'}
             </p>
           </div>
@@ -34,8 +38,8 @@ export default function SettingsPage() {
           <div>
             <p className="text-sm text-gray-500 mb-1">Last Sign In</p>
             <p className="font-medium">
-              {currentUser?.metadata?.lastSignInTime ? 
-                new Date(currentUser.metadata.lastSignInTime).toLocaleDateString() : 
+              {(currentUser as any)?.metadata?.lastSignInTime ? 
+                new Date((currentUser as any).metadata.lastSignInTime).toLocaleDateString() : 
                 'Not available'}
             </p>
           </div>
