@@ -8,8 +8,6 @@ import {
   where, 
   getDocs,
   serverTimestamp,
-  DocumentReference,
-  DocumentData,
   Timestamp,
   deleteDoc,
   writeBatch
@@ -39,10 +37,8 @@ export async function getSalon(salonId: string): Promise<Salon | null> {
   try {
     if (!salonId) return null;
     
-    console.log('Getting salon with ID:', salonId);
     const salonDoc = await getDoc(doc(db, 'salons', salonId));
     if (!salonDoc.exists()) {
-      console.log('Salon not found');
       return null;
     }
     
@@ -50,8 +46,6 @@ export async function getSalon(salonId: string): Promise<Salon | null> {
       id: salonDoc.id, 
       ...salonDoc.data() 
     } as Salon;
-    
-    console.log('Salon data:', salonData);
     return salonData;
   } catch (error) {
     console.error('Error getting salon:', error);
@@ -77,7 +71,7 @@ export async function createSalon(userId: string, salonData: Partial<Salon>): Pr
       createdAt: serverTimestamp()
     };
     
-    console.log('Creating salon:', newSalon);
+    // Creating salon
     await setDoc(salonRef, newSalon);
     
     return salonRef.id;
@@ -93,9 +87,9 @@ export async function updateSalon(salonId: string, data: Partial<Salon>): Promis
     if (!salonId) throw new Error('Salon ID is required');
     
     // Remove id from the data to prevent updating it
-    const { id, createdAt, ...updateData } = data as any;
+    const { id: _id, createdAt: _createdAt, ...updateData } = data as Partial<Salon>;
     
-    console.log('Updating salon:', salonId, 'with data:', updateData);
+    // Updating salon
     
     const salonRef = doc(db, 'salons', salonId);
     
@@ -111,7 +105,7 @@ export async function updateSalon(salonId: string, data: Partial<Salon>): Promis
       updatedAt: serverTimestamp()
     });
     
-    console.log('Salon updated successfully');
+    // Salon updated successfully
   } catch (error) {
     console.error('Error updating salon:', error);
     throw error;
@@ -123,7 +117,6 @@ export async function getUserSalons(userId: string): Promise<Salon[]> {
   try {
     if (!userId) return [];
     
-    console.log('Getting salons for user:', userId);
     const q = query(collection(db, 'salons'), where('createdBy', '==', userId));
     const querySnapshot = await getDocs(q);
     
@@ -131,8 +124,6 @@ export async function getUserSalons(userId: string): Promise<Salon[]> {
       id: doc.id,
       ...doc.data()
     })) as Salon[];
-    
-    console.log('Found salons:', salons.length);
     return salons;
   } catch (error) {
     console.error('Error getting user salons:', error);

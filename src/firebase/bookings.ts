@@ -107,7 +107,7 @@ export async function createBooking(
   try {
     if (!salonId) throw new Error('Salon ID is required');
     
-    console.log('Creating booking for salon:', salonId, 'with data:', bookingData);
+    // Creating booking
     
     // Ensure the salon exists first
     const salonRef = doc(db, 'salons', salonId);
@@ -203,7 +203,7 @@ export async function deleteBooking(salonId: string, bookingId: string): Promise
   try {
     if (!salonId || !bookingId) throw new Error('Salon ID and Booking ID are required');
     
-    console.log(`Deleting booking ${bookingId} from salon ${salonId}`);
+    // Deleting booking
     
     const bookingRef = doc(db, `salons/${salonId}/bookings`, bookingId);
     
@@ -216,7 +216,7 @@ export async function deleteBooking(salonId: string, bookingId: string): Promise
     // Delete the booking
     await deleteDoc(bookingRef);
     
-    console.log(`Booking ${bookingId} successfully deleted`);
+    // Booking deleted successfully
   } catch (error) {
     console.error('Error deleting booking:', error);
     throw error;

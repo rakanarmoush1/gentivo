@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, User, Calendar, Clock, Tag } from 'lucide-react';
+import { User, Calendar, Tag } from 'lucide-react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import Input from '../common/Input';

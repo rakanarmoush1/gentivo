@@ -12,11 +12,4 @@ export const db = getFirestore(firebaseApp);
 export const storage = getStorage(
   firebaseApp, 
   "gs://gentivo-7cd8d.firebasestorage.app"
-);
-
-// Log initialization for debugging
-console.log('Firebase initialized:', { 
-  projectId: firebaseApp.options.projectId,
-  storageBucket: firebaseApp.options.storageBucket,
-  customBucket: "gs://gentivo-7cd8d.firebasestorage.app"
-}); 
+); 

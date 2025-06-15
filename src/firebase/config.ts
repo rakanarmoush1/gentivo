@@ -14,13 +14,5 @@ const firebaseConfig = {
 // Initialize Firebase
 export const firebaseApp = initializeApp(firebaseConfig);
 
-// Debug info for connectivity issues
-console.log('Firebase Initialization', {
-  appName: firebaseApp.name,
-  authDomain: firebaseConfig.authDomain,
-  projectId: firebaseConfig.projectId,
-  storageBucket: firebaseConfig.storageBucket
-});
-
 // Note: For Firebase Storage, we use the explicit bucket URL in firebase.ts:
 // gs://gentivo-7cd8d.firebasestorage.app 

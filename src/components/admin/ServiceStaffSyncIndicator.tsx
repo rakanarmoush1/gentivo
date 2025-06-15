@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RotateCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { RotateCw, CheckCircle } from 'lucide-react';
 
 interface ServiceStaffSyncIndicatorProps {
   show: boolean;

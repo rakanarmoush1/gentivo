@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, CheckCircle, Clock, Calendar, User, ChevronRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle, User, ArrowLeft } from 'lucide-react';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { getSalon, Salon, getSalonServices, Service, createBooking, getSalonEmployees, Employee, getBookingsByDate, Booking } from '../firebase';
@@ -449,9 +449,9 @@ export default function BookingPage() {
     
     return {
       primaryColor: salon.brandPrimaryColor || '#4f46e5',
-      primaryColorLight: `${salon.brandPrimaryColor}20` || '#4f46e520',
+      primaryColorLight: `${salon.brandPrimaryColor || '#4f46e5'}20`,
       secondaryColor: salon.brandSecondaryColor || '#f97316',
-      secondaryColorLight: `${salon.brandSecondaryColor}20` || '#f9731620',
+      secondaryColorLight: `${salon.brandSecondaryColor || '#f97316'}20`,
     };
   };
 
@@ -475,16 +475,10 @@ export default function BookingPage() {
 
   const [direction, setDirection] = useState(0);
 
-  const nextStepDirection = (newStep: BookingStep) => {
-    const currentIndex = steps.findIndex(s => s.key === currentStep);
-    const newIndex = steps.findIndex(s => s.key === newStep);
-    setDirection(newIndex > currentIndex ? 1 : -1);
-  };
-
   useEffect(() => {
     if (salon) {
       document.documentElement.style.setProperty('--primary-color', salon.brandPrimaryColor || '#4f46e5');
-      document.documentElement.style.setProperty('--primary-color-light', `${salon.brandPrimaryColor}20` || '#4f46e520');
+      document.documentElement.style.setProperty('--primary-color-light', `${salon.brandPrimaryColor || '#4f46e5'}20`);
     }
     
     return () => {
@@ -649,7 +643,12 @@ export default function BookingPage() {
                   <div className="grid grid-cols-2 gap-3">
                     {getAvailableDays().slice(0, 8).map((date) => {
                       const isSelected = bookingState.selectedDate?.toDateString() === date.toDateString();
-                      const isToday = date.toDateString() === new Date().toDateString();
+                      const today = new Date();
+                      const tomorrow = new Date(today);
+                      tomorrow.setDate(today.getDate() + 1);
+                      
+                      const isToday = date.toDateString() === today.toDateString();
+                      const isTomorrow = date.toDateString() === tomorrow.toDateString();
                       
                       return (
                         <motion.button
@@ -670,7 +669,7 @@ export default function BookingPage() {
                             {date.toLocaleDateString('en-US', { weekday: 'short' })}
                           </div>
                           <div className="text-lg font-semibold text-gray-900">
-                            {isToday ? 'Today' : date.getDate()}
+                            {isToday ? 'Today' : isTomorrow ? 'Tomorrow' : date.getDate()}
                           </div>
                           <div className="text-sm text-gray-600">
                             {date.toLocaleDateString('en-US', { month: 'short' })}
