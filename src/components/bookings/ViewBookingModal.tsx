@@ -5,6 +5,27 @@ import Button from '../common/Button';
 import { Booking, Service, Employee, updateBookingStatus, deleteBooking } from '../../firebase';
 import { format, isPast, isSameDay } from 'date-fns';
 
+// Helper function to extract numeric duration from string or number
+const getDurationInMinutes = (duration: string | number): number => {
+  if (typeof duration === 'number') {
+    return duration;
+  }
+  
+  // Try to extract first number from string (e.g., "30-45" -> 30, "1 hour" -> 60)
+  const match = duration.toString().match(/(\d+)/);
+  if (match) {
+    const num = parseInt(match[1]);
+    // Handle special cases like "1 hour", "2 hours"
+    if (duration.toLowerCase().includes('hour')) {
+      return num * 60;
+    }
+    return num;
+  }
+  
+  // Default fallback
+  return 30;
+};
+
 interface ViewBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -274,12 +295,12 @@ export default function ViewBookingModal({
             <div className="flex items-center justify-between">
               <span className="font-medium">{booking.service}</span>
               {service && (
-                <span className="text-lg font-semibold text-primary">{service.price} JOD</span>
+                <span className="text-lg font-semibold text-primary">{typeof service.price === 'number' ? `${service.price} JOD` : service.price}</span>
               )}
             </div>
             {service && (
               <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>Duration: {service.duration} minutes</span>
+                <span>Duration: {typeof service.duration === 'number' ? `${service.duration} minutes` : service.duration}</span>
                 <span>Service ID: {service.id.slice(-6)}</span>
               </div>
             )}
@@ -324,11 +345,11 @@ export default function ViewBookingModal({
                 </div>
                 <div className="flex justify-between">
                   <span>End time:</span>
-                  <span className="font-medium">{format(new Date(bookingDate.getTime() + service.duration * 60000), 'h:mm a')}</span>
+                  <span className="font-medium">{format(new Date(bookingDate.getTime() + getDurationInMinutes(service.duration) * 60000), 'h:mm a')}</span>
                 </div>
                 <div className="flex justify-between border-t pt-1 mt-1">
                   <span>Total duration:</span>
-                  <span className="font-medium">{service.duration} minutes</span>
+                                      <span className="font-medium">{typeof service.duration === 'number' ? `${service.duration} minutes` : service.duration}</span>
                 </div>
               </div>
             )}

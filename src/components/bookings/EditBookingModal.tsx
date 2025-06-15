@@ -161,7 +161,7 @@ export default function EditBookingModal({
                 <option value="">Select a service</option>
                 {services.map(service => (
                   <option key={service.id} value={service.name}>
-                    {service.name} - {service.price} JOD ({service.duration} min)
+                    {service.name} - {typeof service.price === 'number' ? `${service.price} JOD` : service.price} ({typeof service.duration === 'number' ? `${service.duration} min` : service.duration})
                   </option>
                 ))}
               </select>

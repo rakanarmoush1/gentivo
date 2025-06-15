@@ -170,7 +170,7 @@ export default function AddBookingModal({
                 <option value="">Select a service</option>
                 {services.map(service => (
                   <option key={service.id} value={service.id}>
-                    {service.name} - {service.price} JOD ({service.duration} mins)
+                    {service.name} - {typeof service.price === 'number' ? `${service.price} JOD` : service.price} ({typeof service.duration === 'number' ? `${service.duration} mins` : service.duration})
                   </option>
                 ))}
               </>

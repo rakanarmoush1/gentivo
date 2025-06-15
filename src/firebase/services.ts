@@ -17,8 +17,8 @@ import { db } from './firebase';
 export interface Service {
   id: string;
   name: string;
-  duration: number; // in minutes
-  price: number;
+  duration: string | number; // in minutes - can be string like "30-45" or number
+  price: string | number; // can be string like "25-30" or number
   description?: string;
   assignedEmployees?: string[]; // Add assigned employees
   isActive?: boolean; // Service active/inactive status

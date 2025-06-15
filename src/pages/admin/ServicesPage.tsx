@@ -20,8 +20,8 @@ import {
 interface Service {
   id: string;
   name: string;
-  duration: number;
-  price: number;
+  duration: string | number;
+  price: string | number;
   description: string;
   assignedEmployees: string[];
   isActive?: boolean;
@@ -42,11 +42,11 @@ interface Toast {
 // Suggested services that can be quickly added
 const suggestedServices = [
   { name: 'Classic Manicure', duration: 30, price: 15, description: 'Basic nail care and polish' },
-  { name: 'Gel Manicure', duration: 45, price: 25, description: 'Long-lasting gel polish application' },
+  { name: 'Gel Manicure', duration: '45-60', price: '25-35', description: 'Long-lasting gel polish application' },
   { name: 'Classic Pedicure', duration: 45, price: 20, description: 'Foot care and regular polish' },
   { name: 'Gel Pedicure', duration: 60, price: 30, description: 'Foot care with gel polish' },
-  { name: 'Nail Art', duration: 30, price: 15, description: 'Custom nail designs' },
-  { name: 'Full Set Acrylic', duration: 90, price: 50, description: 'Full acrylic nail application' }
+  { name: 'Nail Art', duration: '30-60', price: '15-25', description: 'Custom nail designs' },
+  { name: 'Full Set Acrylic', duration: '90-120', price: '50-70', description: 'Full acrylic nail application' }
 ];
 
 interface ServicesPageProps {
@@ -81,8 +81,8 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
   
   const [newService, setNewService] = useState({
     name: '',
-    duration: 30,
-    price: 0,
+    duration: 30 as string | number,
+    price: 0 as string | number,
     description: '',
     assignedEmployees: [] as string[],
     isActive: true
@@ -90,8 +90,8 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
   
   const [editService, setEditService] = useState({
     name: '',
-    duration: 30,
-    price: 0,
+    duration: 30 as string | number,
+    price: 0 as string | number,
     description: '',
     assignedEmployees: [] as string[],
     isActive: true
@@ -253,7 +253,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
     const { name, value } = e.target;
     setNewService(prev => ({
       ...prev,
-      [name]: name === 'duration' || name === 'price' ? Number(value) : value
+      [name]: value // Keep as string for duration and price to allow flexible input
     }));
   };
   
@@ -261,7 +261,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
     const { name, value } = e.target;
     setEditService(prev => ({
       ...prev,
-      [name]: name === 'duration' || name === 'price' ? Number(value) : value
+      [name]: value // Keep as string for duration and price to allow flexible input
     }));
   };
   
@@ -553,10 +553,10 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
                     
                     <div className="mt-2 flex items-center space-x-4">
                       <span className={`text-sm ${service.isActive ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {service.duration} minutes
+                        {typeof service.duration === 'number' ? `${service.duration} minutes` : service.duration}
                       </span>
                       <span className={`text-sm font-medium ${service.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
-                        {service.price} JOD
+                        {typeof service.price === 'number' ? `${service.price} JOD` : service.price}
                       </span>
                     </div>
                   </div>
@@ -610,20 +610,20 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
           <Input
             label="Duration (minutes)"
             name="duration"
-            type="number"
+            type="text"
             value={newService.duration}
             onChange={handleInputChange}
-            placeholder="Enter duration in minutes"
+            placeholder="e.g., 30, 45-60, or 1 hour"
             required
           />
           
           <Input
             label="Price (JOD)"
             name="price"
-            type="number"
+            type="text"
             value={newService.price}
             onChange={handleInputChange}
-            placeholder="Enter price"
+            placeholder="e.g., 25, 20-30, or Contact for price"
             required
           />
           
@@ -678,7 +678,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={addService} disabled={!newService.name || !newService.duration || !newService.price}>
+            <Button onClick={addService} disabled={!newService.name.trim() || !newService.duration || !newService.price}>
               Add Service
             </Button>
           </div>
@@ -705,20 +705,20 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
           <Input
             label="Duration (minutes)"
             name="duration"
-            type="number"
+            type="text"
             value={editService.duration}
             onChange={handleEditInputChange}
-            placeholder="Enter duration in minutes"
+            placeholder="e.g., 30, 45-60, or 1 hour"
             required
           />
           
           <Input
             label="Price (JOD)"
             name="price"
-            type="number"
+            type="text"
             value={editService.price}
             onChange={handleEditInputChange}
-            placeholder="Enter price"
+            placeholder="e.g., 25, 20-30, or Contact for price"
             required
           />
           
@@ -773,7 +773,7 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
             <Button variant="outline" onClick={closeEditModal}>
               Cancel
             </Button>
-            <Button onClick={updateServiceData} disabled={!editService.name || !editService.duration || !editService.price}>
+            <Button onClick={updateServiceData} disabled={!editService.name.trim() || !editService.duration || !editService.price}>
               Update Service
             </Button>
           </div>
@@ -798,11 +798,11 @@ export default function ServicesPage({ salonId }: ServicesPageProps) {
               <div key={index} className="border border-stone-200 rounded-lg p-4 hover:border-stone-300 transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="font-medium text-stone-900">{service.name}</h4>
-                  <span className="text-sm font-medium text-stone-600">{service.price} JOD</span>
+                  <span className="text-sm font-medium text-stone-600">{typeof service.price === 'number' ? `${service.price} JOD` : service.price}</span>
                 </div>
                 <p className="text-sm text-stone-600 mb-2">{service.description}</p>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-stone-500">{service.duration} minutes</span>
+                  <span className="text-xs text-stone-500">{typeof service.duration === 'number' ? `${service.duration} minutes` : service.duration}</span>
                   <Button
                     size="sm"
                     onClick={() => addSuggestedService(service)}

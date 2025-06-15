@@ -20,6 +20,27 @@ interface BookingState {
   };
 }
 
+// Helper function to extract numeric duration from string or number
+const getDurationInMinutes = (duration: string | number): number => {
+  if (typeof duration === 'number') {
+    return duration;
+  }
+  
+  // Try to extract first number from string (e.g., "30-45" -> 30, "1 hour" -> 60)
+  const match = duration.toString().match(/(\d+)/);
+  if (match) {
+    const num = parseInt(match[1]);
+    // Handle special cases like "1 hour", "2 hours"
+    if (duration.toLowerCase().includes('hour')) {
+      return num * 60;
+    }
+    return num;
+  }
+  
+  // Default fallback
+  return 30;
+};
+
 export default function BookingPage() {
   const { salonId } = useParams<{ salonId: string }>();
   const navigate = useNavigate();
@@ -176,7 +197,7 @@ export default function BookingPage() {
     
     const [hours, minutes] = timeSlot.split(':');
     const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), parseInt(hours), parseInt(minutes));
-    const slotEndTime = new Date(slotTime.getTime() + serviceData.duration * 60000);
+    const slotEndTime = new Date(slotTime.getTime() + getDurationInMinutes(serviceData.duration) * 60000);
     
     return availableEmployees.some(employee => {
       const employeeBookings = bookings.filter(booking => {
@@ -186,7 +207,7 @@ export default function BookingPage() {
         if (!employee.services.includes(booking.service)) return false;
         
         const bookingTime = booking.time.toDate();
-        const bookingEndTime = new Date(bookingTime.getTime() + bookingService.duration * 60000);
+        const bookingEndTime = new Date(bookingTime.getTime() + getDurationInMinutes(bookingService.duration) * 60000);
         
         const bookingDate = new Date(bookingTime.getFullYear(), bookingTime.getMonth(), bookingTime.getDate());
         const selectedDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -605,10 +626,10 @@ export default function BookingPage() {
                         whileTap={{ scale: 0.98 }}
                         role="radio"
                         aria-checked={bookingState.selectedService === service.id}
-                        aria-label={`${service.name}, ${service.price} JOD, ${service.duration} minutes`}
+                        aria-label={`${service.name}, ${typeof service.price === 'number' ? `${service.price} JOD` : service.price}, ${typeof service.duration === 'number' ? `${service.duration} minutes` : service.duration}`}
                       >
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">{service.name}</h3>
-                        <p className="text-gray-600">{service.price} JOD • {service.duration} min</p>
+                        <p className="text-gray-600">{typeof service.price === 'number' ? `${service.price} JOD` : service.price} • {typeof service.duration === 'number' ? `${service.duration} min` : service.duration}</p>
                       </motion.button>
                     ))}
                   </div>
@@ -622,7 +643,7 @@ export default function BookingPage() {
                 <div className="max-w-md mx-auto">
                   <div className="text-center mb-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Pick a date</h2>
-                    <p className="text-gray-600">{selectedServiceDetails?.name} • {selectedServiceDetails?.duration} min</p>
+                    <p className="text-gray-600">{selectedServiceDetails?.name} • {typeof selectedServiceDetails?.duration === 'number' ? `${selectedServiceDetails?.duration} min` : selectedServiceDetails?.duration}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -863,7 +884,7 @@ export default function BookingPage() {
                       <div>
                         <h3 className="text-sm font-medium text-gray-500 mb-1">Service</h3>
                         <p className="text-lg font-semibold text-gray-900">{selectedServiceDetails?.name}</p>
-                        <p className="text-gray-600">{selectedServiceDetails?.price} JOD • {selectedServiceDetails?.duration} min</p>
+                        <p className="text-gray-600">{typeof selectedServiceDetails?.price === 'number' ? `${selectedServiceDetails?.price} JOD` : selectedServiceDetails?.price} • {typeof selectedServiceDetails?.duration === 'number' ? `${selectedServiceDetails?.duration} min` : selectedServiceDetails?.duration}</p>
                       </div>
                       
                       <div>
